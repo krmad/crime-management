@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\CaseStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\AssignInvestigatorRequest;
+use App\Http\Requests\CloseCaseRequest;
 use App\Http\Requests\RecordJudgmentRequest;
 use App\Http\Requests\StoreCrimeCaseRequest;
 use App\Http\Requests\UpdateInvestigationRequest;
@@ -79,6 +80,15 @@ class CrimeCaseController extends Controller
         $case->save();
 
         return redirect()->route('cases.show', $case)->with('status', 'judgment-recorded');
+    }
+
+    public function close(CloseCaseRequest $request, CrimeCase $case): RedirectResponse
+    {
+        $case->status = CaseStatus::Closed;
+        $case->closed_at = now();
+        $case->save();
+
+        return redirect()->route('cases.show', $case)->with('status', 'case-closed');
     }
 
     public function create(): View

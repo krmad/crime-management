@@ -19,6 +19,10 @@
                 <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                     {{ __('Judgment saved.') }}
                 </div>
+            @elseif (session('status') === 'case-closed')
+                <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    {{ __('Case closed.') }}
+                </div>
             @endif
 
             <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
@@ -165,6 +169,22 @@
 
                             <div class="mt-4">
                                 <x-primary-button>{{ __('Save judgment') }}</x-primary-button>
+                            </div>
+                        </div>
+                    </form>
+                @endcan
+
+                @can('close', $case)
+                    <form method="POST" action="{{ route('cases.close', $case) }}" class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+                        @csrf
+                        @method('PATCH')
+
+                        <div class="max-w-xl">
+                            <h4 class="text-base font-medium text-gray-900 dark:text-gray-100">{{ __('Close case') }}</h4>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Close this case after recording a judgment. Closed cases cannot be reopened.') }}</p>
+
+                            <div class="mt-4">
+                                <x-primary-button>{{ __('Close case') }}</x-primary-button>
                             </div>
                         </div>
                     </form>

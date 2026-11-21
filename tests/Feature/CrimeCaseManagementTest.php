@@ -966,3 +966,174 @@ test('judgment notes are escaped when displayed', function () {
         ->assertSee(e($rawNotes), false)
         ->assertDontSee($rawNotes, false);
 });
+
+test('guests cannot close cases', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::JudgmentRecorded, [
+        'judgment_notes' => 'Judgment notes are complete.',
+    ]);
+
+    $this->patch(route('cases.close', $case))
+        ->assertRedirect(route('login'));
+
+    expect($case->fresh()->status)->toBe(CaseStatus::JudgmentRecorded)
+        ->and($case->fresh()->closed_at)->toBeNull();
+});
+
+test('administrator can close a case with recorded judgment', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $judgmentNotes = 'Final judgment notes.';
+    $investigationNotes = 'Investigation notes are complete.';
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::JudgmentRecorded, [
+        'investigation_notes' => $investigationNotes,
+        'judgment_notes' => $judgmentNotes,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('cases.close', $case))
+        ->assertRedirect(route('cases.show', $case))
+        ->assertSessionHas('status', 'case-closed');
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at)->not->toBeNull()
+        ->and($freshCase->judgment_notes)->toBe($judgmentNotes)
+        ->and($freshCase->investigation_notes)->toBe($investigationNotes)
+        ->and($freshCase->investigator_id)->toBe($investigator->id);
+});
+
+test('closure success message and closure date are displayed', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::JudgmentRecorded, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => 'Final judgment notes.',
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->followingRedirects()
+        ->from(route('cases.show', $case))
+        ->patch(route('cases.close', $case))
+        ->assertOk();
+
+    $closureDate = $case->fresh()->closed_at->format('M d, Y h:i A');
+
+    $response->assertSee('Case closed.')
+        ->assertSee('Closure date')
+        ->assertSee($closureDate);
+});
+
+test('administrator cannot close cases without a recorded judgment', function (CaseStatus $status, ?string $judgmentNotes) {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $originalClosedAt = $status === CaseStatus::Closed ? now()->subDay()->startOfSecond() : null;
+    $case = caseManagementAssignedCase($officer, $investigator, $status, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => $judgmentNotes,
+        'closed_at' => $originalClosedAt,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('cases.close', $case))
+        ->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->status)->toBe($status)
+        ->and($freshCase->closed_at?->toDateTimeString())->toBe($originalClosedAt?->toDateTimeString());
+})->with([
+    'open case' => [CaseStatus::Open, null],
+    'case under investigation' => [CaseStatus::UnderInvestigation, 'Judgment notes are complete.'],
+    'recorded judgment without notes' => [CaseStatus::JudgmentRecorded, null],
+    'recorded judgment with empty notes' => [CaseStatus::JudgmentRecorded, ''],
+    'recorded judgment with whitespace notes' => [CaseStatus::JudgmentRecorded, '   '],
+    'closed case' => [CaseStatus::Closed, 'Final judgment notes.'],
+]);
+
+test('investigators and police officers cannot close cases', function (UserRole $role) {
+    $actor = caseManagementUser($role);
+    $officer = $role === UserRole::PoliceOfficer ? $actor : caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = $role === UserRole::Investigator ? $actor : caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::JudgmentRecorded, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => 'Final judgment notes.',
+    ]);
+
+    $this->actingAs($actor)
+        ->patch(route('cases.close', $case))
+        ->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->status)->toBe(CaseStatus::JudgmentRecorded)
+        ->and($freshCase->closed_at)->toBeNull()
+        ->and($freshCase->judgment_notes)->toBe('Final judgment notes.');
+})->with([
+    'investigator' => [UserRole::Investigator],
+    'police officer' => [UserRole::PoliceOfficer],
+]);
+
+test('closed cases cannot be closed again or reopened', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $closedAt = now()->subDay()->startOfSecond();
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::Closed, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => 'Final judgment notes.',
+        'closed_at' => $closedAt,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('cases.close', $case))
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->patch(route('cases.record_judgment', $case), [
+            'judgment_notes' => 'Attempted reopen judgment.',
+        ])
+        ->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at?->toDateTimeString())->toBe($closedAt->toDateTimeString())
+        ->and($freshCase->judgment_notes)->toBe('Final judgment notes.');
+});
+
+test('close form is visible only to eligible administrators', function (UserRole $role, CaseStatus $status, ?string $judgmentNotes, bool $expected) {
+    $actor = caseManagementUser($role);
+    $officer = $role === UserRole::PoliceOfficer ? $actor : caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = $role === UserRole::Investigator ? $actor : caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, $status, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => $judgmentNotes,
+    ]);
+
+    $response = $this->actingAs($actor)->get(route('cases.show', $case));
+
+    $response->assertOk();
+
+    if ($expected) {
+        $response->assertSee(route('cases.close', $case), false)
+            ->assertSee('Close case');
+    } else {
+        $response->assertDontSee(route('cases.close', $case), false)
+            ->assertDontSee('Close case');
+    }
+})->with([
+    'administrator with recorded judgment' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, 'Final judgment notes.', true],
+    'administrator with open case' => [UserRole::Administrator, CaseStatus::Open, null, false],
+    'administrator with case under investigation' => [UserRole::Administrator, CaseStatus::UnderInvestigation, 'Judgment notes are complete.', false],
+    'administrator without judgment notes' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, null, false],
+    'administrator with whitespace judgment notes' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, '   ', false],
+    'administrator on closed case' => [UserRole::Administrator, CaseStatus::Closed, 'Final judgment notes.', false],
+    'investigator with recorded judgment' => [UserRole::Investigator, CaseStatus::JudgmentRecorded, 'Final judgment notes.', false],
+    'police officer with recorded judgment' => [UserRole::PoliceOfficer, CaseStatus::JudgmentRecorded, 'Final judgment notes.', false],
+]);

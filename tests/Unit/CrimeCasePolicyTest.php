@@ -143,12 +143,20 @@ test('record judgment enforces administrator access and investigation status', f
     'police officer cannot record completed investigation' => [UserRole::PoliceOfficer, CaseStatus::UnderInvestigation, 'Investigation notes.', false],
 ]);
 
-test('close cases is granted only to administrators', function (UserRole $role, bool $expected) {
+test('close enforces administrator access, judgment status, and notes', function (UserRole $role, CaseStatus $status, ?string $judgmentNotes, bool $expected) {
     $user = caseAuthorizationUser($role, 1);
+    $case = caseAuthorizationCase(2, 2, $status);
+    $case->judgment_notes = $judgmentNotes;
 
-    expect(Gate::forUser($user)->allows('close', caseAuthorizationCase(2)))->toBe($expected);
+    expect(Gate::forUser($user)->allows('close', $case))->toBe($expected);
 })->with([
-    'administrator' => [UserRole::Administrator, true],
-    'police officer' => [UserRole::PoliceOfficer, false],
-    'investigator' => [UserRole::Investigator, false],
+    'administrator closes recorded judgment' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, 'Judgment notes.', true],
+    'administrator cannot close without judgment notes' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, null, false],
+    'administrator cannot close with empty judgment notes' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, '', false],
+    'administrator cannot close with whitespace judgment notes' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, '   ', false],
+    'administrator cannot close open case' => [UserRole::Administrator, CaseStatus::Open, 'Judgment notes.', false],
+    'administrator cannot close case under investigation' => [UserRole::Administrator, CaseStatus::UnderInvestigation, 'Judgment notes.', false],
+    'administrator cannot close closed case' => [UserRole::Administrator, CaseStatus::Closed, 'Judgment notes.', false],
+    'investigator cannot close recorded judgment' => [UserRole::Investigator, CaseStatus::JudgmentRecorded, 'Judgment notes.', false],
+    'police officer cannot close recorded judgment' => [UserRole::PoliceOfficer, CaseStatus::JudgmentRecorded, 'Judgment notes.', false],
 ]);

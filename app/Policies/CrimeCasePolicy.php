@@ -77,6 +77,11 @@ class CrimeCasePolicy
 
     public function close(User $user, CrimeCase $case): bool
     {
-        return $user->can('close-cases');
+        if ($user->cannot('close-cases')) {
+            return false;
+        }
+
+        return $case->status === CaseStatus::JudgmentRecorded
+            && filled($case->judgment_notes);
     }
 }
