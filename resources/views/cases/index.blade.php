@@ -31,7 +31,7 @@
                     <p class="mt-6 text-sm text-gray-600 dark:text-gray-400">{{ __('No cases are available.') }}</p>
                 @else
                     <div class="mt-6 overflow-x-auto">
-                        <table class="w-full min-w-[760px] text-left text-sm">
+                        <table class="w-full min-w-[880px] text-left text-sm">
                             <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
                                 <tr>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Title') }}</th>
@@ -41,6 +41,7 @@
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Incident date') }}</th>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Creator') }}</th>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Investigator') }}</th>
+                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -55,6 +56,9 @@
                                         <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->incident_date?->format('M d, Y') ?? '—' }}</td>
                                         <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->creator?->name ?? '—' }}</td>
                                         <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->investigator?->name ?? '—' }}</td>
+                                        <td class="px-4 py-4">
+                                            <a href="{{ route('cases.show', $case) }}" class="whitespace-nowrap text-sm text-indigo-600 underline hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ __('View Details') }}</a>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>

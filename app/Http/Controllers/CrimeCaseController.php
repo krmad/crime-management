@@ -32,6 +32,15 @@ class CrimeCaseController extends Controller
         return view('cases.index', compact('cases'));
     }
 
+    public function show(CrimeCase $case): View
+    {
+        Gate::authorize('view', $case);
+
+        $case->load(['creator:id,name', 'investigator:id,name']);
+
+        return view('cases.show', compact('case'));
+    }
+
     public function create(): View
     {
         Gate::authorize('create', CrimeCase::class);

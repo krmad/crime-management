@@ -213,3 +213,98 @@ test('validation rejects invalid required fields', function () {
 
     $this->assertDatabaseCount('cases', 0);
 });
+
+test('guests cannot access case details', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer);
+
+    $this->get(route('cases.show', $case))
+        ->assertRedirect(route('login'));
+
+    $this->assertGuest();
+});
+
+test('administrator can view any case details', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer, $investigator, [
+        'title' => 'Admin Visible Case',
+        'description' => 'Detailed description for administrators.',
+        'judgment_notes' => 'Judgment notes recorded for this case.',
+        'closed_at' => now(),
+    ]);
+
+    $this->actingAs($admin)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertViewIs('cases.show')
+        ->assertSee('Admin Visible Case')
+        ->assertSee('Detailed description for administrators.')
+        ->assertSee($investigator->name)
+        ->assertSee('Incident date')
+        ->assertSee('Created at')
+        ->assertSee('Updated at')
+        ->assertSee('Judgment notes recorded for this case.')
+        ->assertSee('Closure date');
+});
+
+test('police officer can view own case but not another officer case', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $otherOfficer = caseManagementUser(UserRole::PoliceOfficer);
+    $ownCase = caseManagementCase($officer, null, ['title' => 'Own Details Case']);
+    $otherCase = caseManagementCase($otherOfficer, null, ['title' => 'Other Details Case']);
+
+    $this->actingAs($officer)->get(route('cases.show', $ownCase))
+        ->assertOk()
+        ->assertSee('Own Details Case')
+        ->assertDontSee('Other Details Case');
+
+    $this->actingAs($officer)->get(route('cases.show', $otherCase))
+        ->assertForbidden();
+});
+
+test('investigator can view assigned case but not unassigned case', function () {
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $assignedCase = caseManagementCase($officer, $investigator, ['title' => 'Assigned Details Case']);
+    $unassignedCase = caseManagementCase($officer, null, ['title' => 'Unassigned Details Case']);
+
+    $this->actingAs($investigator)->get(route('cases.show', $assignedCase))
+        ->assertOk()
+        ->assertSee('Assigned Details Case');
+
+    $this->actingAs($investigator)->get(route('cases.show', $unassignedCase))
+        ->assertForbidden();
+});
+
+test('case details return 404 for missing case', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+
+    $this->actingAs($admin)
+        ->get(route('cases.show', ['case' => 999999]))
+        ->assertNotFound();
+});
+
+test('case listing displays view details links for visible cases', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $otherOfficer = caseManagementUser(UserRole::PoliceOfficer);
+    $visibleCase = caseManagementCase($officer, null, ['title' => 'Linked Case']);
+    $hiddenCase = caseManagementCase($otherOfficer, null, ['title' => 'Hidden Case']);
+
+    $this->actingAs($officer)->get(route('cases.index'))
+        ->assertOk()
+        ->assertSee('View Details')
+        ->assertSee(route('cases.show', $visibleCase), false)
+        ->assertDontSee(route('cases.show', $hiddenCase), false);
+});
+
+test('case details hide judgment notes and closure date when absent', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer, null, ['title' => 'Plain Details Case']);
+
+    $this->actingAs($admin)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertDontSee('Judgment notes')
+        ->assertDontSee('Closure date');
+});

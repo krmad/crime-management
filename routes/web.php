@@ -11,6 +11,7 @@ Route::get('/', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/cases', [CrimeCaseController::class, 'index'])->name('cases.index');
     Route::get('/cases/create', [CrimeCaseController::class, 'create'])->name('cases.create');
+    Route::get('/cases/{case}', [CrimeCaseController::class, 'show'])->name('cases.show');
     Route::post('/cases', [CrimeCaseController::class, 'store'])->name('cases.store');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
