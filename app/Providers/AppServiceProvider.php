@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Enums\UserRole;
+use App\Models\CrimeCase;
 use App\Models\User;
+use App\Policies\CrimeCasePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,5 +35,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('record-judgment', fn (User $user): bool => $user->role === UserRole::Administrator);
 
         Gate::define('close-cases', fn (User $user): bool => $user->role === UserRole::Administrator);
+
+        Gate::define('assign-cases', fn (User $user): bool => $user->role === UserRole::Administrator);
+
+        Gate::policy(CrimeCase::class, CrimeCasePolicy::class);
     }
 }

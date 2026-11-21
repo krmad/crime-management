@@ -78,3 +78,15 @@ test('close-cases grants administrators only', function (?UserRole $role, bool $
     'police officer' => [UserRole::PoliceOfficer, false],
     'no role' => [null, false],
 ]);
+
+test('assign-cases grants administrators only', function (?UserRole $role, bool $expected) {
+    $user = new User;
+    $user->role = $role;
+
+    expect(Gate::forUser($user)->allows('assign-cases'))->toBe($expected);
+})->with([
+    'administrator' => [UserRole::Administrator, true],
+    'investigator' => [UserRole::Investigator, false],
+    'police officer' => [UserRole::PoliceOfficer, false],
+    'no role' => [null, false],
+]);
