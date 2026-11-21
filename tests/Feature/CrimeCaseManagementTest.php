@@ -24,6 +24,14 @@ function caseManagementCase(User $creator, ?User $investigator = null, array $at
     return $factory->create($attributes);
 }
 
+function caseManagementAssignedCase(User $creator, User $investigator, CaseStatus $status = CaseStatus::Open, array $attributes = []): CrimeCase
+{
+    $case = caseManagementCase($creator, null, array_merge($attributes, ['status' => $status]));
+    $case->forceFill(['investigator_id' => $investigator->id])->save();
+
+    return $case;
+}
+
 function validCasePayload(array $overrides = []): array
 {
     return array_merge([
@@ -444,3 +452,259 @@ test('assignment form is visible only to administrators', function (UserRole $ro
     'police officer' => [UserRole::PoliceOfficer, false],
     'investigator' => [UserRole::Investigator, false],
 ]);
+
+test('guests cannot update investigation notes', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator);
+
+    $this->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Unauthorized guest note',
+    ])->assertRedirect(route('login'));
+
+    $this->assertGuest();
+
+    expect($case->fresh()->investigation_notes)->toBeNull()
+        ->and($case->fresh()->status)->toBe(CaseStatus::Open);
+});
+
+test('assigned investigator can record investigation notes and starts investigation', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::Open);
+
+    $response = $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Interviewed the witness near the depot.',
+    ]);
+
+    $response->assertRedirect(route('cases.show', $case))
+        ->assertSessionHas('status', 'investigation-updated');
+
+    $this->assertDatabaseHas('cases', [
+        'id' => $case->id,
+        'investigation_notes' => 'Interviewed the witness near the depot.',
+        'status' => CaseStatus::UnderInvestigation->value,
+    ]);
+
+    $this->actingAs($investigator)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee('Investigation notes saved.')
+        ->assertSee('Interviewed the witness near the depot.');
+});
+
+test('investigator can add further notes without changing under investigation status', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::UnderInvestigation, [
+        'investigation_notes' => 'Initial case notes.',
+    ]);
+
+    $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Follow-up notes after reviewing footage.',
+    ])->assertRedirect(route('cases.show', $case));
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigation_notes)->toBe('Follow-up notes after reviewing footage.')
+        ->and($freshCase->status)->toBe(CaseStatus::UnderInvestigation);
+});
+
+test('unassigned investigator cannot update investigation notes', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer);
+
+    $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Unassigned note attempt',
+    ])->assertForbidden();
+
+    expect($case->fresh()->investigation_notes)->toBeNull()
+        ->and($case->fresh()->status)->toBe(CaseStatus::Open);
+});
+
+test('investigator cannot update investigation notes for another investigator case', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $assignedInvestigator = caseManagementUser(UserRole::Investigator);
+    $otherInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $assignedInvestigator, CaseStatus::UnderInvestigation);
+
+    $this->actingAs($otherInvestigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Other investigator note attempt',
+    ])->assertForbidden();
+
+    expect($case->fresh()->investigation_notes)->toBeNull()
+        ->and($case->fresh()->status)->toBe(CaseStatus::UnderInvestigation);
+});
+
+test('police officer cannot update investigation notes on own case', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator);
+
+    $this->actingAs($officer)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Officer note attempt',
+    ])->assertForbidden();
+
+    expect($case->fresh()->investigation_notes)->toBeNull()
+        ->and($case->fresh()->status)->toBe(CaseStatus::Open);
+});
+
+test('administrator can record investigation notes on any case', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer);
+
+    $this->actingAs($admin)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Administrator oversight notes.',
+    ])->assertRedirect(route('cases.show', $case))
+        ->assertSessionHas('status', 'investigation-updated');
+
+    expect($case->fresh()->investigation_notes)->toBe('Administrator oversight notes.')
+        ->and($case->fresh()->status)->toBe(CaseStatus::UnderInvestigation);
+});
+
+test('administrator can record investigation notes without downgrading a terminal case', function (CaseStatus $status) {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, $status);
+
+    $this->actingAs($admin)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Administrator retrospective notes.',
+    ])->assertRedirect(route('cases.show', $case));
+
+    expect($case->fresh()->investigation_notes)->toBe('Administrator retrospective notes.')
+        ->and($case->fresh()->status)->toBe($status);
+})->with([
+    CaseStatus::JudgmentRecorded,
+    CaseStatus::Closed,
+]);
+
+test('invalid investigation notes are rejected without modifying the case', function (array $payload) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::UnderInvestigation, [
+        'investigation_notes' => 'Existing investigation notes.',
+    ]);
+
+    $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), $payload)
+        ->assertSessionHasErrors('investigation_notes');
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigation_notes)->toBe('Existing investigation notes.')
+        ->and($freshCase->status)->toBe(CaseStatus::UnderInvestigation);
+})->with([
+    'missing notes' => [[]],
+    'empty notes' => [['investigation_notes' => '']],
+    'notes too long' => [['investigation_notes' => str_repeat('a', 5001)]],
+    'non string notes' => [['investigation_notes' => ['unexpected']]],
+]);
+
+test('investigation validation errors are displayed on the case details page', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator);
+
+    $this->actingAs($investigator)
+        ->followingRedirects()
+        ->from(route('cases.show', $case))
+        ->patch(route('cases.update_investigation', $case), [])
+        ->assertOk()
+        ->assertSee('The investigation notes field is required.');
+});
+
+test('investigators cannot update investigation notes on judgment recorded or closed cases', function (CaseStatus $status) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, $status, [
+        'investigation_notes' => 'Existing investigation notes.',
+    ]);
+
+    $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Attempted terminal status update.',
+    ])->assertForbidden();
+
+    expect($case->fresh()->investigation_notes)->toBe('Existing investigation notes.')
+        ->and($case->fresh()->status)->toBe($status);
+})->with([
+    CaseStatus::JudgmentRecorded,
+    CaseStatus::Closed,
+]);
+
+test('investigation update ignores protected case fields', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $otherInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator);
+
+    $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Valid investigation notes.',
+        'status' => CaseStatus::Closed->value,
+        'judgment_notes' => 'Injected judgment notes.',
+        'closed_at' => now()->toDateTimeString(),
+        'investigator_id' => $otherInvestigator->id,
+    ])->assertRedirect(route('cases.show', $case));
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigation_notes)->toBe('Valid investigation notes.')
+        ->and($freshCase->status)->toBe(CaseStatus::UnderInvestigation)
+        ->and($freshCase->judgment_notes)->toBeNull()
+        ->and($freshCase->closed_at)->toBeNull()
+        ->and($freshCase->investigator_id)->toBe($investigator->id);
+});
+
+test('investigation update form is visible only to authorized users', function (UserRole $role, bool $expected) {
+    $actor = caseManagementUser($role);
+    $officer = $role === UserRole::PoliceOfficer ? $actor : caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = $role === UserRole::Investigator ? $actor : caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::UnderInvestigation);
+
+    $response = $this->actingAs($actor)->get(route('cases.show', $case));
+
+    $response->assertOk();
+
+    if ($expected) {
+        $response->assertSee('Update investigation')
+            ->assertSee(route('cases.update_investigation', $case), false)
+            ->assertSee('Save investigation notes');
+    } else {
+        $response->assertDontSee('Update investigation')
+            ->assertDontSee(route('cases.update_investigation', $case), false)
+            ->assertDontSee('Save investigation notes');
+    }
+})->with([
+    'administrator' => [UserRole::Administrator, true],
+    'assigned investigator' => [UserRole::Investigator, true],
+    'police officer' => [UserRole::PoliceOfficer, false],
+]);
+
+test('investigation update form is hidden from investigators on terminal cases', function (CaseStatus $status) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, $status);
+
+    $this->actingAs($investigator)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertDontSee('Update investigation')
+        ->assertDontSee(route('cases.update_investigation', $case), false);
+})->with([
+    CaseStatus::JudgmentRecorded,
+    CaseStatus::Closed,
+]);
+
+test('investigation notes are escaped when displayed', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $rawNotes = '<script>alert("investigation")</script>';
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::UnderInvestigation, [
+        'investigation_notes' => $rawNotes,
+    ]);
+
+    $this->actingAs($admin)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee(e($rawNotes), false)
+        ->assertDontSee($rawNotes, false);
+});

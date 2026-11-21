@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CaseStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\AssignInvestigatorRequest;
 use App\Http\Requests\StoreCrimeCaseRequest;
+use App\Http\Requests\UpdateInvestigationRequest;
 use App\Models\CrimeCase;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -54,6 +56,19 @@ class CrimeCaseController extends Controller
         $case->save();
 
         return redirect()->route('cases.show', $case)->with('status', 'case-assigned');
+    }
+
+    public function updateInvestigation(UpdateInvestigationRequest $request, CrimeCase $case): RedirectResponse
+    {
+        $case->investigation_notes = $request->validated()['investigation_notes'];
+
+        if ($case->status === CaseStatus::Open) {
+            $case->status = CaseStatus::UnderInvestigation;
+        }
+
+        $case->save();
+
+        return redirect()->route('cases.show', $case)->with('status', 'investigation-updated');
     }
 
     public function create(): View

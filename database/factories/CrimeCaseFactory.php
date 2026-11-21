@@ -49,6 +49,7 @@ class CrimeCaseFactory extends Factory
             ]),
             'status' => CaseStatus::Open,
             'incident_date' => fake()->dateTimeBetween('-6 months', 'now'),
+            'investigation_notes' => null,
             'judgment_notes' => null,
             'closed_at' => null,
             'created_by' => User::factory(),

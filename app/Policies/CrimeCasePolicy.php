@@ -46,6 +46,17 @@ class CrimeCasePolicy
             && $case->status === CaseStatus::Open;
     }
 
+    public function updateInvestigation(User $user, CrimeCase $case): bool
+    {
+        if ($user->can('view-all-cases')) {
+            return true;
+        }
+
+        return $user->can('investigate-cases')
+            && $case->investigator_id === $user->id
+            && ! in_array($case->status, [CaseStatus::JudgmentRecorded, CaseStatus::Closed], true);
+    }
+
     public function assign(User $user, CrimeCase $case): bool
     {
         return $user->can('assign-cases');

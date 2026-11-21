@@ -13,6 +13,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/cases/create', [CrimeCaseController::class, 'create'])->name('cases.create');
     Route::get('/cases/{case}', [CrimeCaseController::class, 'show'])->name('cases.show');
     Route::patch('/cases/{case}/assignment', [CrimeCaseController::class, 'assign'])->name('cases.assign');
+    Route::patch('/cases/{case}/investigation', [CrimeCaseController::class, 'updateInvestigation'])->name('cases.update_investigation');
     Route::post('/cases', [CrimeCaseController::class, 'store'])->name('cases.store');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

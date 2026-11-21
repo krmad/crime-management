@@ -100,6 +100,22 @@ test('update enforces ownership assignment and case status', function (UserRole 
     'investigator cannot update own created unassigned case' => [UserRole::Investigator, 3, 3, null, CaseStatus::Open, false],
 ]);
 
+test('update investigation enforces oversight assignment and terminal statuses', function (UserRole $role, int $actorId, int $creatorId, ?int $investigatorId, CaseStatus $status, bool $expected) {
+    $user = caseAuthorizationUser($role, $actorId);
+    $case = caseAuthorizationCase($creatorId, $investigatorId, $status);
+
+    expect(Gate::forUser($user)->allows('updateInvestigation', $case))->toBe($expected);
+})->with([
+    'administrator oversees any case' => [UserRole::Administrator, 1, 2, 3, CaseStatus::Closed, true],
+    'police officer cannot update own open case' => [UserRole::PoliceOfficer, 2, 2, null, CaseStatus::Open, false],
+    'investigator updates assigned open case' => [UserRole::Investigator, 3, 2, 3, CaseStatus::Open, true],
+    'investigator updates assigned case under investigation' => [UserRole::Investigator, 3, 2, 3, CaseStatus::UnderInvestigation, true],
+    'investigator cannot update unassigned case' => [UserRole::Investigator, 3, 2, null, CaseStatus::Open, false],
+    'investigator cannot update another investigator case' => [UserRole::Investigator, 3, 2, 4, CaseStatus::UnderInvestigation, false],
+    'investigator cannot update assigned judgment recorded case' => [UserRole::Investigator, 3, 2, 3, CaseStatus::JudgmentRecorded, false],
+    'investigator cannot update assigned closed case' => [UserRole::Investigator, 3, 2, 3, CaseStatus::Closed, false],
+]);
+
 test('assign investigators is granted only to administrators', function (UserRole $role, bool $expected) {
     $user = caseAuthorizationUser($role, 1);
 

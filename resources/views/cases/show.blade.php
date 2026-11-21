@@ -11,6 +11,10 @@
                 <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                     {{ __('Case assigned.') }}
                 </div>
+            @elseif (session('status') === 'investigation-updated')
+                <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    {{ __('Investigation notes saved.') }}
+                </div>
             @endif
 
             <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
@@ -59,6 +63,13 @@
                         <p class="mt-1 whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{{ $case->description }}</p>
                     </div>
 
+                    @if ($case->investigation_notes)
+                        <div class="sm:col-span-2">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Investigation notes') }}</p>
+                            <p class="mt-1 whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{{ $case->investigation_notes }}</p>
+                        </div>
+                    @endif
+
                     @if ($case->judgment_notes)
                         <div class="sm:col-span-2">
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Judgment notes') }}</p>
@@ -106,6 +117,28 @@
 
                             <div class="mt-4">
                                 <x-primary-button>{{ __('Assign investigator') }}</x-primary-button>
+                            </div>
+                        </div>
+                    </form>
+                @endcan
+
+                @can('updateInvestigation', $case)
+                    <form method="POST" action="{{ route('cases.update_investigation', $case) }}" class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+                        @csrf
+                        @method('PATCH')
+
+                        <div class="max-w-xl">
+                            <h4 class="text-base font-medium text-gray-900 dark:text-gray-100">{{ __('Update investigation') }}</h4>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Record the latest investigation notes for this case.') }}</p>
+
+                            <div class="mt-4">
+                                <x-input-label for="investigation_notes" :value="__('Investigation notes')" />
+                                <textarea id="investigation_notes" name="investigation_notes" rows="5" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600" required>{{ old('investigation_notes', $case->investigation_notes) }}</textarea>
+                                <x-input-error :messages="$errors->get('investigation_notes')" class="mt-2" />
+                            </div>
+
+                            <div class="mt-4">
+                                <x-primary-button>{{ __('Save investigation notes') }}</x-primary-button>
                             </div>
                         </div>
                     </form>
