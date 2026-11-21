@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+use App\Http\Requests\AssignInvestigatorRequest;
 use App\Http\Requests\StoreCrimeCaseRequest;
 use App\Models\CrimeCase;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -38,7 +41,19 @@ class CrimeCaseController extends Controller
 
         $case->load(['creator:id,name', 'investigator:id,name']);
 
-        return view('cases.show', compact('case'));
+        $investigators = User::where('role', UserRole::Investigator)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('cases.show', compact('case', 'investigators'));
+    }
+
+    public function assign(AssignInvestigatorRequest $request, CrimeCase $case): RedirectResponse
+    {
+        $case->investigator()->associate($request->validated()['investigator_id']);
+        $case->save();
+
+        return redirect()->route('cases.show', $case)->with('status', 'case-assigned');
     }
 
     public function create(): View

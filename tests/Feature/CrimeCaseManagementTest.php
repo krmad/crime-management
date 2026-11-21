@@ -308,3 +308,139 @@ test('case details hide judgment notes and closure date when absent', function (
         ->assertDontSee('Judgment notes')
         ->assertDontSee('Closure date');
 });
+
+test('guests cannot assign investigators', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer);
+
+    $this->patch(route('cases.assign', $case), ['investigator_id' => $investigator->id])
+        ->assertRedirect(route('login'));
+
+    $this->assertGuest();
+});
+
+test('administrator can assign an investigator', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer, null, ['title' => 'Assignable Case']);
+
+    $response = $this->actingAs($admin)->patch(route('cases.assign', $case), [
+        'investigator_id' => $investigator->id,
+    ]);
+
+    $response->assertRedirect(route('cases.show', $case))
+        ->assertSessionHas('status', 'case-assigned');
+
+    $this->assertDatabaseHas('cases', [
+        'id' => $case->id,
+        'investigator_id' => $investigator->id,
+        'status' => CaseStatus::Open->value,
+    ]);
+
+    $this->actingAs($admin)->get(route('cases.show', $case))
+        ->assertSee('Case assigned.');
+});
+
+test('administrator can reassign an investigator', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $firstInvestigator = caseManagementUser(UserRole::Investigator);
+    $secondInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer, $firstInvestigator, ['title' => 'Reassignable Case']);
+    $originalStatus = $case->status;
+
+    $this->actingAs($admin)->patch(route('cases.assign', $case), [
+        'investigator_id' => $secondInvestigator->id,
+    ])->assertRedirect(route('cases.show', $case));
+
+    $this->assertDatabaseHas('cases', [
+        'id' => $case->id,
+        'investigator_id' => $secondInvestigator->id,
+    ]);
+
+    expect($case->fresh()->status)->toBe($originalStatus);
+});
+
+test('assignment requires an investigator', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $originalInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer, $originalInvestigator);
+
+    $this->actingAs($admin)->patch(route('cases.assign', $case), [])
+        ->assertSessionHasErrors('investigator_id');
+
+    expect($case->fresh()->investigator_id)->toBe($originalInvestigator->id);
+});
+
+test('assignment rejects users who are not investigators and nonexistent ids', function (?UserRole $role, bool $existing) {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $originalInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer, $originalInvestigator);
+    $invalidInvestigatorId = $existing ? caseManagementUser($role)->id : 999999;
+
+    $this->actingAs($admin)->patch(route('cases.assign', $case), [
+        'investigator_id' => $invalidInvestigatorId,
+    ])->assertSessionHasErrors('investigator_id');
+
+    expect($case->fresh()->investigator_id)->toBe($originalInvestigator->id);
+})->with([
+    'police officer' => [UserRole::PoliceOfficer, true],
+    'administrator' => [UserRole::Administrator, true],
+    'nonexistent id' => [null, false],
+]);
+
+test('police officers and investigators cannot submit assignments', function (UserRole $role) {
+    $actor = caseManagementUser($role);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $originalInvestigator = caseManagementUser(UserRole::Investigator);
+    $newInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer, $originalInvestigator);
+
+    $this->actingAs($actor)->patch(route('cases.assign', $case), [
+        'investigator_id' => $newInvestigator->id,
+    ])->assertForbidden();
+
+    expect($case->fresh()->investigator_id)->toBe($originalInvestigator->id);
+})->with([
+    UserRole::PoliceOfficer,
+    UserRole::Investigator,
+]);
+
+test('assignment returns 404 for a missing case', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $investigator = caseManagementUser(UserRole::Investigator);
+
+    $this->actingAs($admin)->patch(route('cases.assign', ['case' => 999999]), [
+        'investigator_id' => $investigator->id,
+    ])->assertNotFound();
+});
+
+test('assignment form is visible only to administrators', function (UserRole $role, bool $expected) {
+    $actor = caseManagementUser($role);
+    $officer = $role === UserRole::PoliceOfficer ? $actor : caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = $role === UserRole::Investigator ? $actor : caseManagementUser(UserRole::Investigator);
+    $nonInvestigator = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer, $investigator, ['title' => 'Assignment Form Case']);
+
+    $response = $this->actingAs($actor)->get(route('cases.show', $case));
+
+    $response->assertOk();
+
+    if ($expected) {
+        $response->assertSee('Assign investigator')
+            ->assertSee(route('cases.assign', $case), false)
+            ->assertSee($investigator->name)
+            ->assertDontSee($nonInvestigator->name);
+    } else {
+        $response->assertDontSee('Assign investigator')
+            ->assertDontSee(route('cases.assign', $case), false);
+    }
+})->with([
+    'administrator' => [UserRole::Administrator, true],
+    'police officer' => [UserRole::PoliceOfficer, false],
+    'investigator' => [UserRole::Investigator, false],
+]);
