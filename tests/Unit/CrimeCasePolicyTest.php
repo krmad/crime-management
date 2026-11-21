@@ -126,14 +126,21 @@ test('assign investigators is granted only to administrators', function (UserRol
     'investigator' => [UserRole::Investigator, false],
 ]);
 
-test('record judgment is granted only to administrators', function (UserRole $role, bool $expected) {
+test('record judgment enforces administrator access and investigation status', function (UserRole $role, CaseStatus $status, ?string $investigationNotes, bool $expected) {
     $user = caseAuthorizationUser($role, 1);
+    $case = caseAuthorizationCase(2, 3, $status);
+    $case->investigation_notes = $investigationNotes;
 
-    expect(Gate::forUser($user)->allows('recordJudgment', caseAuthorizationCase(2)))->toBe($expected);
+    expect(Gate::forUser($user)->allows('recordJudgment', $case))->toBe($expected);
 })->with([
-    'administrator' => [UserRole::Administrator, true],
-    'police officer' => [UserRole::PoliceOfficer, false],
-    'investigator' => [UserRole::Investigator, false],
+    'administrator records completed investigation' => [UserRole::Administrator, CaseStatus::UnderInvestigation, 'Investigation notes.', true],
+    'administrator edits existing judgment' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, 'Investigation notes.', true],
+    'administrator cannot record before investigation' => [UserRole::Administrator, CaseStatus::Open, 'Investigation notes.', false],
+    'administrator cannot record without investigation notes' => [UserRole::Administrator, CaseStatus::UnderInvestigation, null, false],
+    'administrator cannot record with empty investigation notes' => [UserRole::Administrator, CaseStatus::UnderInvestigation, '', false],
+    'administrator cannot modify closed case' => [UserRole::Administrator, CaseStatus::Closed, 'Investigation notes.', false],
+    'investigator cannot record completed investigation' => [UserRole::Investigator, CaseStatus::UnderInvestigation, 'Investigation notes.', false],
+    'police officer cannot record completed investigation' => [UserRole::PoliceOfficer, CaseStatus::UnderInvestigation, 'Investigation notes.', false],
 ]);
 
 test('close cases is granted only to administrators', function (UserRole $role, bool $expected) {

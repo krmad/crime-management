@@ -64,7 +64,15 @@ class CrimeCasePolicy
 
     public function recordJudgment(User $user, CrimeCase $case): bool
     {
-        return $user->can('record-judgment');
+        if ($user->cannot('record-judgment')) {
+            return false;
+        }
+
+        if ($case->status === CaseStatus::UnderInvestigation) {
+            return filled($case->investigation_notes);
+        }
+
+        return $case->status === CaseStatus::JudgmentRecorded;
     }
 
     public function close(User $user, CrimeCase $case): bool

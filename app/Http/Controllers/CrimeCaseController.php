@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\CaseStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\AssignInvestigatorRequest;
+use App\Http\Requests\RecordJudgmentRequest;
 use App\Http\Requests\StoreCrimeCaseRequest;
 use App\Http\Requests\UpdateInvestigationRequest;
 use App\Models\CrimeCase;
@@ -69,6 +70,15 @@ class CrimeCaseController extends Controller
         $case->save();
 
         return redirect()->route('cases.show', $case)->with('status', 'investigation-updated');
+    }
+
+    public function recordJudgment(RecordJudgmentRequest $request, CrimeCase $case): RedirectResponse
+    {
+        $case->judgment_notes = $request->validated()['judgment_notes'];
+        $case->status = CaseStatus::JudgmentRecorded;
+        $case->save();
+
+        return redirect()->route('cases.show', $case)->with('status', 'judgment-recorded');
     }
 
     public function create(): View

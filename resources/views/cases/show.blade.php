@@ -15,6 +15,10 @@
                 <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                     {{ __('Investigation notes saved.') }}
                 </div>
+            @elseif (session('status') === 'judgment-recorded')
+                <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    {{ __('Judgment saved.') }}
+                </div>
             @endif
 
             <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
@@ -70,7 +74,7 @@
                         </div>
                     @endif
 
-                    @if ($case->judgment_notes)
+                    @if (filled($case->judgment_notes))
                         <div class="sm:col-span-2">
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Judgment notes') }}</p>
                             <p class="mt-1 whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{{ $case->judgment_notes }}</p>
@@ -139,6 +143,28 @@
 
                             <div class="mt-4">
                                 <x-primary-button>{{ __('Save investigation notes') }}</x-primary-button>
+                            </div>
+                        </div>
+                    </form>
+                @endcan
+
+                @can('recordJudgment', $case)
+                    <form method="POST" action="{{ route('cases.record_judgment', $case) }}" class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+                        @csrf
+                        @method('PATCH')
+
+                        <div class="max-w-xl">
+                            <h4 class="text-base font-medium text-gray-900 dark:text-gray-100">{{ __('Judgment') }}</h4>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Record or update the judgment for this case.') }}</p>
+
+                            <div class="mt-4">
+                                <x-input-label for="judgment_notes" :value="__('Judgment notes')" />
+                                <textarea id="judgment_notes" name="judgment_notes" rows="5" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600" required>{{ old('judgment_notes', $case->judgment_notes) }}</textarea>
+                                <x-input-error :messages="$errors->get('judgment_notes')" class="mt-2" />
+                            </div>
+
+                            <div class="mt-4">
+                                <x-primary-button>{{ __('Save judgment') }}</x-primary-button>
                             </div>
                         </div>
                     </form>
