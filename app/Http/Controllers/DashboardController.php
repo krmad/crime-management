@@ -59,7 +59,12 @@ class DashboardController extends Controller
 
         $navigation[] = ['label' => 'Cases', 'url' => route('cases.index')];
 
-        foreach (['Officers', 'Suspects', 'Victims', 'Evidence', 'Reports', 'User Management'] as $label) {
+        if ($user->can('manage-users')) {
+            $navigation[] = ['label' => 'User Management', 'url' => route('users.index')];
+            $navigation[] = ['label' => 'Officers', 'url' => route('officers.index')];
+        }
+
+        foreach (['Suspects', 'Victims', 'Evidence', 'Reports'] as $label) {
             $navigation[] = ['label' => $label, 'url' => null];
         }
 

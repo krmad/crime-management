@@ -7,8 +7,11 @@ use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -29,6 +32,23 @@ class User extends Authenticatable
         return $this->hasMany(CrimeCase::class, 'investigator_id');
     }
 
+    public function officerProfile(): HasOne
+    {
+        return $this->hasOne(OfficerProfile::class);
+    }
+
+    #[Scope]
+    protected function active(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    #[Scope]
+    protected function inactive(Builder $query): Builder
+    {
+        return $query->where('is_active', false);
+    }
+
     /**
      * Get the attributes that should be cast.
      *
@@ -40,6 +60,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'is_active' => 'boolean',
         ];
     }
 }

@@ -63,6 +63,16 @@
                 <div class="flex items-center gap-3">
                     <span class="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 sm:inline dark:bg-slate-800 dark:text-slate-300">{{ \Illuminate\Support\Str::headline(Auth::user()->role?->value ?? 'user') }}</span>
                     <span class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white" title="{{ Auth::user()->name }}">{{ strtoupper(substr(Auth::user()->name, 0, 1)) }}</span>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+
+                        <button type="submit" class="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                            </svg>
+                            {{ __('Log Out') }}
+                        </button>
+                    </form>
                 </div>
             </header>
 
@@ -131,12 +141,13 @@
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                                     @foreach ($recentCases as $case)
-                                        <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                        <tr class="cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                            onclick="window.location.href='{{ route('cases.show', $case) }}'">
                                             <td class="whitespace-nowrap px-5 py-4 font-medium text-slate-900 dark:text-white">
                                                 <a href="{{ route('cases.show', $case) }}" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">#{{ $case->id }}</a>
                                             </td>
                                             <td class="px-5 py-4 text-slate-700 dark:text-slate-300">
-                                                <span class="block">{{ $case->title }}</span>
+                                                <a href="{{ route('cases.show', $case) }}" class="block hover:text-indigo-600 dark:hover:text-indigo-400">{{ $case->title }}</a>
                                                 <span class="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{{ $case->crime_type }}</span>
                                             </td>
                                             <td class="px-5 py-4 text-slate-600 dark:text-slate-400">

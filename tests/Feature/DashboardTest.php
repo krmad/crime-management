@@ -148,6 +148,71 @@ test('recent cases are limited to five and ordered by creation date then id', fu
         ->toBe($cases->reverse()->take(5)->pluck('id')->all());
 });
 
+test('dashboard case row opens case details for every role', function (UserRole $role) {
+    $actor = dashboardTestUser($role);
+    $officer = $role === UserRole::PoliceOfficer ? $actor : dashboardTestUser(UserRole::PoliceOfficer);
+    $investigator = $role === UserRole::Investigator ? $actor : dashboardTestUser(UserRole::Investigator);
+    $case = CrimeCase::factory()
+        ->withCreator($officer)
+        ->assignedTo($investigator)
+        ->create(['title' => 'Dashboard Clickable Case']);
+
+    $this->actingAs($actor)->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('Dashboard Clickable Case')
+        ->assertSee('cursor-pointer', false)
+        ->assertSee("onclick=\"window.location.href='".route('cases.show', $case)."'\"", false)
+        ->assertSee('>Dashboard Clickable Case</a>', false);
+
+    $this->actingAs($actor)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee('Dashboard Clickable Case');
+})->with([
+    UserRole::Administrator,
+    UserRole::PoliceOfficer,
+    UserRole::Investigator,
+]);
+
+test('dashboard logout control signs out every role', function (UserRole $role) {
+    $user = dashboardTestUser($role);
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('action="'.route('logout').'"', false)
+        ->assertSee('Log Out');
+
+    $this->post(route('logout'))
+        ->assertRedirect('/');
+
+    $this->assertGuest();
+})->with([
+    UserRole::Administrator,
+    UserRole::PoliceOfficer,
+    UserRole::Investigator,
+]);
+
+test('management navigation links are visible only to administrators', function (UserRole $role, bool $expected) {
+    $user = dashboardTestUser($role);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    $response->assertOk();
+
+    if ($expected) {
+        $response->assertSee('User Management')
+            ->assertSee(route('users.index'), false)
+            ->assertSee(route('officers.index'), false);
+    } else {
+        $response->assertDontSee('User Management')
+            ->assertDontSee(route('users.index'), false)
+            ->assertDontSee(route('officers.index'), false);
+    }
+})->with([
+    'administrator' => [UserRole::Administrator, true],
+    'police officer' => [UserRole::PoliceOfficer, false],
+    'investigator' => [UserRole::Investigator, false],
+]);
+
 test('case creation link follows case creation authorization', function (UserRole $role, bool $expected) {
     $user = dashboardTestUser($role);
 
