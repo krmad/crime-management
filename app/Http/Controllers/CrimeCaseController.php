@@ -22,14 +22,8 @@ class CrimeCaseController extends Controller
     {
         Gate::authorize('viewAny', CrimeCase::class);
 
-        $user = $request->user();
-        $query = CrimeCase::query()->with(['creator:id,name', 'investigator:id,name']);
-
-        if ($user->cannot('view-all-cases') && $user->can('investigate-cases')) {
-            $query->whereBelongsTo($user, 'investigator');
-        } elseif ($user->cannot('view-all-cases') && $user->can('open-cases')) {
-            $query->whereBelongsTo($user, 'creator');
-        }
+        $query = CrimeCase::visibleTo($request->user())
+            ->with(['creator:id,name', 'investigator:id,name']);
 
         $cases = $query
             ->orderByDesc('created_at')

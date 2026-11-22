@@ -1,12 +1,11 @@
 <?php
 
 use App\Http\Controllers\CrimeCaseController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('dashboard');
-})->middleware('auth')->name('dashboard');
+Route::get('/', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/cases', [CrimeCaseController::class, 'index'])->name('cases.index');

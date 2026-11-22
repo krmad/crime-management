@@ -11,35 +11,6 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100">
-    @php
-        $navigation = [
-            'Dashboard',
-            'Crime Reports',
-            'Cases',
-            'Officers',
-            'Suspects',
-            'Victims',
-            'Evidence',
-            'Reports',
-            'User Management',
-        ];
-
-        $statistics = [
-            ['label' => 'Total Cases', 'value' => '128', 'note' => 'All recorded cases', 'accent' => 'bg-indigo-500'],
-            ['label' => 'Open Cases', 'value' => '42', 'note' => 'Awaiting action', 'accent' => 'bg-amber-500'],
-            ['label' => 'Closed Cases', 'value' => '86', 'note' => 'Resolved cases', 'accent' => 'bg-emerald-500'],
-            ['label' => 'Total Officers', 'value' => '24', 'note' => 'Active personnel', 'accent' => 'bg-sky-500'],
-        ];
-
-        $cases = [
-            ['id' => 'CR-2026-0142', 'type' => 'Burglary', 'location' => 'Downtown District', 'officer' => 'Insp. Maria Santos', 'status' => 'Open', 'statusClass' => 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300', 'date' => 'Nov 18, 2026'],
-            ['id' => 'CR-2026-0141', 'type' => 'Assault', 'location' => 'Westside Avenue', 'officer' => 'PO. Daniel Reyes', 'status' => 'Under Investigation', 'statusClass' => 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300', 'date' => 'Nov 17, 2026'],
-            ['id' => 'CR-2026-0138', 'type' => 'Vehicle Theft', 'location' => 'North Harbor', 'officer' => 'Insp. Lina Cruz', 'status' => 'Closed', 'statusClass' => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300', 'date' => 'Nov 15, 2026'],
-            ['id' => 'CR-2026-0135', 'type' => 'Fraud', 'location' => 'Central Business District', 'officer' => 'PO. Ana Villanueva', 'status' => 'Under Investigation', 'statusClass' => 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300', 'date' => 'Nov 12, 2026'],
-            ['id' => 'CR-2026-0130', 'type' => 'Vandalism', 'location' => 'Eastside Park', 'officer' => 'PO. Miguel Torres', 'status' => 'Closed', 'statusClass' => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300', 'date' => 'Nov 09, 2026'],
-        ];
-    @endphp
-
     <div class="min-h-screen lg:flex">
         <aside class="hidden w-64 shrink-0 flex-col bg-slate-900 text-slate-300 dark:bg-slate-950 lg:flex">
             <div class="flex h-16 items-center gap-3 border-b border-white/10 px-6">
@@ -55,15 +26,24 @@
 
             <nav class="flex-1 space-y-1 px-3 py-6">
                 @foreach ($navigation as $item)
-                    <a
-                        href="#"
-                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors {{ $item === 'Dashboard' ? 'bg-indigo-600 text-white' : 'hover:bg-white/10 hover:text-white' }}"
-                    >
-                        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path stroke-linejoin="round" d="M3.75 6.75h4.5v4.5h-4.5zM15.75 6.75h4.5v4.5h-4.5zM3.75 15h4.5v4.5h-4.5zM15.75 15h4.5v4.5h-4.5z" />
-                        </svg>
-                        {{ $item }}
-                    </a>
+                    @if ($item['url'])
+                        <a
+                            href="{{ $item['url'] }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors {{ $item['label'] === 'Dashboard' ? 'bg-indigo-600 text-white' : 'hover:bg-white/10 hover:text-white' }}"
+                        >
+                            <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linejoin="round" d="M3.75 6.75h4.5v4.5h-4.5zM15.75 6.75h4.5v4.5h-4.5zM3.75 15h4.5v4.5h-4.5zM15.75 15h4.5v4.5h-4.5z" />
+                            </svg>
+                            {{ $item['label'] }}
+                        </a>
+                    @else
+                        <span class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500">
+                            <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linejoin="round" d="M3.75 6.75h4.5v4.5h-4.5zM15.75 6.75h4.5v4.5h-4.5zM3.75 15h4.5v4.5h-4.5zM15.75 15h4.5v4.5h-4.5z" />
+                            </svg>
+                            {{ $item['label'] }}
+                        </span>
+                    @endif
                 @endforeach
             </nav>
 
@@ -81,19 +61,25 @@
                     <h1 class="text-base font-semibold text-slate-900 sm:text-lg dark:text-white">Crime Management System</h1>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 sm:inline dark:bg-slate-800 dark:text-slate-300">Admin</span>
-                    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">AD</span>
+                    <span class="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 sm:inline dark:bg-slate-800 dark:text-slate-300">{{ \Illuminate\Support\Str::headline(Auth::user()->role?->value ?? 'user') }}</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white" title="{{ Auth::user()->name }}">{{ strtoupper(substr(Auth::user()->name, 0, 1)) }}</span>
                 </div>
             </header>
 
             <nav class="flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 lg:hidden">
                 @foreach ($navigation as $item)
-                    <a
-                        href="#"
-                        class="whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium {{ $item === 'Dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' }}"
-                    >
-                        {{ $item }}
-                    </a>
+                    @if ($item['url'])
+                        <a
+                            href="{{ $item['url'] }}"
+                            class="whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium {{ $item['label'] === 'Dashboard' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' }}"
+                        >
+                            {{ $item['label'] }}
+                        </a>
+                    @else
+                        <span class="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+                            {{ $item['label'] }}
+                        </span>
+                    @endif
                 @endforeach
             </nav>
 
@@ -103,7 +89,7 @@
                     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Overview of crime records and operational activity.</p>
                 </div>
 
-                <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Case statistics">
+                <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Case statistics">
                     @foreach ($statistics as $statistic)
                         <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <div class="flex items-start justify-between gap-3">
@@ -124,37 +110,43 @@
                             <h3 class="text-base font-semibold text-slate-900 dark:text-white">Recent Cases</h3>
                             <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Latest reported incidents</p>
                         </div>
-                        <a href="#" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
+                        <a href="{{ route('cases.index') }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">View all</a>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[720px] text-left text-sm">
-                            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-                                <tr>
-                                    <th scope="col" class="px-5 py-3 font-medium">Case ID</th>
-                                    <th scope="col" class="px-5 py-3 font-medium">Crime Type</th>
-                                    <th scope="col" class="px-5 py-3 font-medium">Location</th>
-                                    <th scope="col" class="px-5 py-3 font-medium">Assigned Officer</th>
-                                    <th scope="col" class="px-5 py-3 font-medium">Status</th>
-                                    <th scope="col" class="px-5 py-3 font-medium">Date Reported</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                                @foreach ($cases as $case)
-                                    <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                        <td class="whitespace-nowrap px-5 py-4 font-medium text-slate-900 dark:text-white">{{ $case['id'] }}</td>
-                                        <td class="whitespace-nowrap px-5 py-4 text-slate-700 dark:text-slate-300">{{ $case['type'] }}</td>
-                                        <td class="px-5 py-4 text-slate-600 dark:text-slate-400">{{ $case['location'] }}</td>
-                                        <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-400">{{ $case['officer'] }}</td>
-                                        <td class="px-5 py-4">
-                                            <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium {{ $case['statusClass'] }}">{{ $case['status'] }}</span>
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-4 text-slate-500 dark:text-slate-400">{{ $case['date'] }}</td>
+                    @if ($recentCases->isEmpty())
+                        <p class="px-5 py-10 text-center text-sm text-slate-500 dark:text-slate-400">No cases are available to your role yet.</p>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[720px] text-left text-sm">
+                                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+                                    <tr>
+                                        <th scope="col" class="px-5 py-3 font-medium">Case ID</th>
+                                        <th scope="col" class="px-5 py-3 font-medium">Crime Type</th>
+                                        <th scope="col" class="px-5 py-3 font-medium">Location</th>
+                                        <th scope="col" class="px-5 py-3 font-medium">Assigned Investigator</th>
+                                        <th scope="col" class="px-5 py-3 font-medium">Status</th>
+                                        <th scope="col" class="px-5 py-3 font-medium">Date Reported</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    @foreach ($recentCases as $case)
+                                        <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                            <td class="whitespace-nowrap px-5 py-4 font-medium text-slate-900 dark:text-white">
+                                                <a href="{{ route('cases.show', $case) }}" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">#{{ $case->id }}</a>
+                                            </td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-slate-700 dark:text-slate-300">{{ $case->crime_type }}</td>
+                                            <td class="px-5 py-4 text-slate-600 dark:text-slate-400">{{ $case->location }}</td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-400">{{ $case->investigator?->name ?? '—' }}</td>
+                                            <td class="px-5 py-4">
+                                                <span class="inline-flex whitespace-nowrap rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">{{ \Illuminate\Support\Str::headline($case->status->value) }}</span>
+                                            </td>
+                                            <td class="whitespace-nowrap px-5 py-4 text-slate-500 dark:text-slate-400">{{ $case->created_at?->format('M d, Y') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </section>
             </main>
         </div>
