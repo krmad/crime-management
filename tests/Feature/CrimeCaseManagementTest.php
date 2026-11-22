@@ -160,6 +160,82 @@ test('investigator sees only assigned cases', function () {
         ->not->toContain($unassignedCase->id);
 });
 
+test('case listing orders by created_at and id with deterministic pagination', function (UserRole $role) {
+    $actor = caseManagementUser($role);
+    $officer = $role === UserRole::PoliceOfficer ? $actor : caseManagementUser(UserRole::PoliceOfficer);
+    $otherOfficer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = $role === UserRole::Investigator ? $actor : caseManagementUser(UserRole::Investigator);
+    $otherInvestigator = caseManagementUser(UserRole::Investigator);
+
+    $makeVisibleCase = function (string $createdAt) use ($role, $actor, $officer, $investigator): CrimeCase {
+        return match ($role) {
+            UserRole::Administrator => caseManagementCase($officer, null, ['created_at' => $createdAt]),
+            UserRole::PoliceOfficer => caseManagementCase($actor, null, ['created_at' => $createdAt]),
+            UserRole::Investigator => caseManagementCase($officer, $investigator, ['created_at' => $createdAt]),
+        };
+    };
+
+    $baseTime = now()->subDays(30)->startOfSecond();
+    $visibleCases = collect(range(1, 10))
+        ->map(fn (int $day): CrimeCase => $makeVisibleCase($baseTime->copy()->addDays($day)->toDateTimeString()));
+
+    $tieTime = $baseTime->copy()->addDays(11)->toDateTimeString();
+    $visibleCases->push($makeVisibleCase($tieTime), $makeVisibleCase($tieTime));
+
+    $excludedIds = [];
+
+    if ($role === UserRole::PoliceOfficer) {
+        $excludedIds[] = caseManagementCase($otherOfficer, null, [
+            'created_at' => $baseTime->copy()->addDays(13)->toDateTimeString(),
+        ])->id;
+        $excludedIds[] = caseManagementCase($otherOfficer, $actor, [
+            'created_at' => $baseTime->copy()->addDays(14)->toDateTimeString(),
+        ])->id;
+    }
+
+    if ($role === UserRole::Investigator) {
+        $excludedIds[] = caseManagementCase($actor, null, [
+            'created_at' => $baseTime->copy()->addDays(13)->toDateTimeString(),
+        ])->id;
+        $excludedIds[] = caseManagementCase($officer, $otherInvestigator, [
+            'created_at' => $baseTime->copy()->addDays(14)->toDateTimeString(),
+        ])->id;
+    }
+
+    $expectedIds = $visibleCases
+        ->sortByDesc(fn (CrimeCase $case): array => [$case->created_at->getTimestamp(), $case->id])
+        ->pluck('id')
+        ->values()
+        ->all();
+
+    $firstPage = $this->actingAs($actor)->get(route('cases.index', ['page' => 1]));
+    $secondPage = $this->actingAs($actor)->get(route('cases.index', ['page' => 2]));
+
+    $firstPage->assertOk();
+    $secondPage->assertOk();
+
+    $firstPageIds = $firstPage->viewData('cases')->getCollection()->pluck('id')->all();
+    $secondPageIds = $secondPage->viewData('cases')->getCollection()->pluck('id')->all();
+    $tiedIds = $visibleCases->slice(-2)->pluck('id')->all();
+
+    expect($firstPageIds)
+        ->toHaveCount(10)
+        ->toBe(array_slice($expectedIds, 0, 10))
+        ->and(array_slice($firstPageIds, 0, 2))
+        ->toBe([$tiedIds[1], $tiedIds[0]])
+        ->and($secondPageIds)
+        ->toHaveCount(2)
+        ->toBe(array_slice($expectedIds, 10, 2));
+
+    foreach ($excludedIds as $excludedId) {
+        expect(array_merge($firstPageIds, $secondPageIds))->not->toContain($excludedId);
+    }
+})->with([
+    'administrator' => [UserRole::Administrator],
+    'police officer' => [UserRole::PoliceOfficer],
+    'investigator' => [UserRole::Investigator],
+]);
+
 test('administrators and police officers can create cases', function (UserRole $role) {
     $user = caseManagementUser($role);
 
