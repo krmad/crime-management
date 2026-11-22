@@ -31,21 +31,6 @@ class CrimeCasePolicy
         return $user->can('open-cases');
     }
 
-    public function update(User $user, CrimeCase $case): bool
-    {
-        if ($user->can('view-all-cases')) {
-            return true;
-        }
-
-        if ($user->can('investigate-cases') && $case->investigator_id === $user->id) {
-            return true;
-        }
-
-        return $user->can('open-cases')
-            && $case->created_by === $user->id
-            && $case->status === CaseStatus::Open;
-    }
-
     public function updateInvestigation(User $user, CrimeCase $case): bool
     {
         if (in_array($case->status, [CaseStatus::JudgmentRecorded, CaseStatus::Closed], true)) {
