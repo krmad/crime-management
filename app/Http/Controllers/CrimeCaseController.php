@@ -13,6 +13,7 @@ use App\Models\CrimeCase;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -48,39 +49,97 @@ class CrimeCaseController extends Controller
 
     public function assign(AssignInvestigatorRequest $request, CrimeCase $case): RedirectResponse
     {
-        $case->investigator()->associate($request->validated()['investigator_id']);
-        $case->save();
+        $case = DB::transaction(function () use ($request, $case): CrimeCase {
+            $case->refreshForUpdate();
+
+            Gate::authorize('assign', $case);
+
+            $updated = CrimeCase::whereKey($case->getKey())
+                ->where('status', '!=', CaseStatus::Closed->value)
+                ->where('investigator_id', $case->investigator_id)
+                ->update(['investigator_id' => $request->validated()['investigator_id']]);
+
+            abort_unless($updated === 1, 409, 'The case is no longer available for assignment.');
+
+            return $case;
+        });
 
         return redirect()->route('cases.show', $case)->with('status', 'case-assigned');
     }
 
     public function updateInvestigation(UpdateInvestigationRequest $request, CrimeCase $case): RedirectResponse
     {
-        $case->investigation_notes = $request->validated()['investigation_notes'];
+        $case = DB::transaction(function () use ($request, $case): CrimeCase {
+            $case->refreshForUpdate();
 
-        if ($case->status === CaseStatus::Open) {
-            $case->status = CaseStatus::UnderInvestigation;
-        }
+            Gate::authorize('updateInvestigation', $case);
 
-        $case->save();
+            $status = $case->status === CaseStatus::Open
+                ? CaseStatus::UnderInvestigation
+                : $case->status;
+
+            $updated = CrimeCase::whereKey($case->getKey())
+                ->whereIn('status', [CaseStatus::Open->value, CaseStatus::UnderInvestigation->value])
+                ->where('investigator_id', $case->investigator_id)
+                ->whereNull('closed_at')
+                ->update([
+                    'investigation_notes' => $request->validated()['investigation_notes'],
+                    'status' => $status->value,
+                ]);
+
+            abort_unless($updated === 1, 409, 'The case changed while the notes were being saved.');
+
+            return $case;
+        });
 
         return redirect()->route('cases.show', $case)->with('status', 'investigation-updated');
     }
 
     public function recordJudgment(RecordJudgmentRequest $request, CrimeCase $case): RedirectResponse
     {
-        $case->judgment_notes = $request->validated()['judgment_notes'];
-        $case->status = CaseStatus::JudgmentRecorded;
-        $case->save();
+        $case = DB::transaction(function () use ($request, $case): CrimeCase {
+            $case->refreshForUpdate();
+
+            Gate::authorize('recordJudgment', $case);
+
+            $updated = CrimeCase::whereKey($case->getKey())
+                ->whereIn('status', [CaseStatus::UnderInvestigation->value, CaseStatus::JudgmentRecorded->value])
+                ->whereNotNull('investigation_notes')
+                ->where('investigation_notes', '!=', '')
+                ->update([
+                    'judgment_notes' => $request->validated()['judgment_notes'],
+                    'status' => CaseStatus::JudgmentRecorded->value,
+                ]);
+
+            abort_unless($updated === 1, 409, 'The case changed while the judgment was being saved.');
+
+            return $case;
+        });
 
         return redirect()->route('cases.show', $case)->with('status', 'judgment-recorded');
     }
 
     public function close(CloseCaseRequest $request, CrimeCase $case): RedirectResponse
     {
-        $case->status = CaseStatus::Closed;
-        $case->closed_at = now();
-        $case->save();
+        $case = DB::transaction(function () use ($case): CrimeCase {
+            $case->refreshForUpdate();
+
+            Gate::authorize('close', $case);
+
+            $updated = CrimeCase::whereKey($case->getKey())
+                ->where('status', CaseStatus::JudgmentRecorded->value)
+                ->whereNull('closed_at')
+                ->whereNotNull('judgment_notes')
+                ->where('judgment_notes', '!=', '')
+                ->update([
+                    'status' => CaseStatus::Closed->value,
+                    'closed_at' => now(),
+                ]);
+
+            abort_unless($updated === 1, 409, 'The case changed while it was being closed.');
+
+            return $case;
+        });
 
         return redirect()->route('cases.show', $case)->with('status', 'case-closed');
     }

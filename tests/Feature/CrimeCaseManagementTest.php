@@ -4,6 +4,10 @@ use App\Enums\CaseStatus;
 use App\Enums\UserRole;
 use App\Models\CrimeCase;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
+use Mockery;
 
 function caseManagementUser(UserRole $role): User
 {
@@ -41,6 +45,28 @@ function validCasePayload(array $overrides = []): array
         'description' => 'Fictional incident report for internal testing.',
         'incident_date' => now()->subDay()->toDateTimeString(),
     ], $overrides);
+}
+
+function caseManagementConditionalConflict(CrimeCase $staleCase, string $ability, callable $racingWrite): void
+{
+    $authorizationCalls = 0;
+
+    Gate::before(function ($user, string $calledAbility, array $arguments) use (&$authorizationCalls, $ability, $racingWrite) {
+        if ($calledAbility === $ability && ++$authorizationCalls === 2) {
+            $racingWrite();
+        }
+    });
+
+    Route::bind('case', fn (string $value) => $staleCase);
+
+    $databaseManager = app('db');
+    $databaseManagerMock = Mockery::mock($databaseManager)->makePartial();
+    $databaseManagerMock->shouldReceive('transaction')
+        ->once()
+        ->andReturnUsing(fn (callable $callback) => $callback());
+
+    app()->instance('db', $databaseManagerMock);
+    DB::clearResolvedInstance();
 }
 
 test('guests cannot access case routes', function (string $method, string $routeName) {
@@ -535,6 +561,61 @@ test('administrator cannot reassign an investigator on a closed case', function 
         ->and($freshCase->status)->toBe(CaseStatus::Closed);
 });
 
+test('administrator cannot assign an investigator when the case was closed after authorization', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $originalInvestigator = caseManagementUser(UserRole::Investigator);
+    $newInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $originalInvestigator, CaseStatus::Open);
+    $staleCase = $case->fresh();
+
+    $case->forceFill([
+        'status' => CaseStatus::Closed,
+        'judgment_notes' => 'Final judgment notes.',
+        'closed_at' => now(),
+    ])->save();
+
+    Route::bind('case', fn (string $value) => $staleCase);
+
+    $this->actingAs($admin)->patch(route('cases.assign', $case), [
+        'investigator_id' => $newInvestigator->id,
+    ])->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigator_id)->toBe($originalInvestigator->id)
+        ->and($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at)->not->toBeNull();
+});
+
+test('assignment returns 409 when the case is closed after the fresh read', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $originalInvestigator = caseManagementUser(UserRole::Investigator);
+    $newInvestigator = caseManagementUser(UserRole::Investigator);
+    $closedAt = now()->subMinute()->startOfSecond();
+    $case = caseManagementAssignedCase($officer, $originalInvestigator, CaseStatus::Open);
+    $staleCase = $case->fresh();
+
+    caseManagementConditionalConflict($staleCase, 'assign', function () use ($case, $closedAt) {
+        CrimeCase::whereKey($case->getKey())->update([
+            'status' => CaseStatus::Closed->value,
+            'judgment_notes' => 'Final judgment notes.',
+            'closed_at' => $closedAt,
+        ]);
+    });
+
+    $this->actingAs($admin)->patch(route('cases.assign', $case), [
+        'investigator_id' => $newInvestigator->id,
+    ])->assertStatus(409);
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigator_id)->toBe($originalInvestigator->id)
+        ->and($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at?->toDateTimeString())->toBe($closedAt->toDateTimeString());
+});
+
 test('assignment requires an investigator', function () {
     $admin = caseManagementUser(UserRole::Administrator);
     $officer = caseManagementUser(UserRole::PoliceOfficer);
@@ -716,6 +797,27 @@ test('investigator cannot update investigation notes for another investigator ca
         ->and($case->fresh()->status)->toBe(CaseStatus::UnderInvestigation);
 });
 
+test('former investigator cannot save notes after the case was reassigned', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $originalInvestigator = caseManagementUser(UserRole::Investigator);
+    $newInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $originalInvestigator, CaseStatus::UnderInvestigation);
+    $staleCase = $case->fresh();
+
+    $case->forceFill(['investigator_id' => $newInvestigator->id])->save();
+
+    Route::bind('case', fn (string $value) => $staleCase);
+
+    $this->actingAs($originalInvestigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Attempted notes by former investigator.',
+    ])->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigation_notes)->toBeNull()
+        ->and($freshCase->investigator_id)->toBe($newInvestigator->id);
+});
+
 test('police officer cannot update investigation notes on own case', function () {
     $officer = caseManagementUser(UserRole::PoliceOfficer);
     $investigator = caseManagementUser(UserRole::Investigator);
@@ -815,6 +917,57 @@ test('investigators cannot update investigation notes on judgment recorded or cl
     CaseStatus::JudgmentRecorded,
     CaseStatus::Closed,
 ]);
+
+test('investigation notes cannot be saved when the case was closed after authorization', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::Open);
+    $staleCase = $case->fresh();
+
+    $case->forceFill([
+        'status' => CaseStatus::Closed,
+        'judgment_notes' => 'Final judgment notes.',
+        'closed_at' => now(),
+    ])->save();
+
+    Route::bind('case', fn (string $value) => $staleCase);
+
+    $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Notes submitted after closure.',
+    ])->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigation_notes)->toBeNull()
+        ->and($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at)->not->toBeNull();
+});
+
+test('investigation update returns 409 when the case is closed after the fresh read', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $closedAt = now()->subMinute()->startOfSecond();
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::Open);
+    $staleCase = $case->fresh();
+
+    caseManagementConditionalConflict($staleCase, 'updateInvestigation', function () use ($case, $closedAt) {
+        CrimeCase::whereKey($case->getKey())->update([
+            'status' => CaseStatus::Closed->value,
+            'judgment_notes' => 'Final judgment notes.',
+            'closed_at' => $closedAt,
+        ]);
+    });
+
+    $this->actingAs($investigator)->patch(route('cases.update_investigation', $case), [
+        'investigation_notes' => 'Notes submitted after closure.',
+    ])->assertStatus(409);
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigation_notes)->toBeNull()
+        ->and($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at?->toDateTimeString())->toBe($closedAt->toDateTimeString());
+});
 
 test('investigation update ignores protected case fields', function () {
     $officer = caseManagementUser(UserRole::PoliceOfficer);
@@ -1038,6 +1191,91 @@ test('administrator cannot modify judgments on closed cases', function () {
 
     expect($case->fresh()->judgment_notes)->toBe('Original judgment notes.')
         ->and($case->fresh()->status)->toBe(CaseStatus::Closed);
+});
+
+test('judgment cannot be recorded when the case was closed after authorization', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::UnderInvestigation, [
+        'investigation_notes' => 'Investigation notes are complete.',
+    ]);
+    $staleCase = $case->fresh();
+
+    $case->forceFill([
+        'status' => CaseStatus::Closed,
+        'judgment_notes' => 'Judgment recorded before closure.',
+        'closed_at' => now(),
+    ])->save();
+
+    Route::bind('case', fn (string $value) => $staleCase);
+
+    $this->actingAs($admin)->patch(route('cases.record_judgment', $case), [
+        'judgment_notes' => 'Judgment submitted after closure.',
+    ])->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->judgment_notes)->toBe('Judgment recorded before closure.')
+        ->and($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at)->not->toBeNull();
+});
+
+test('judgment cannot be edited when the case was closed after authorization', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::JudgmentRecorded, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => 'Original judgment notes.',
+    ]);
+    $staleCase = $case->fresh();
+
+    $case->forceFill([
+        'status' => CaseStatus::Closed,
+        'closed_at' => now(),
+    ])->save();
+
+    Route::bind('case', fn (string $value) => $staleCase);
+
+    $this->actingAs($admin)->patch(route('cases.record_judgment', $case), [
+        'judgment_notes' => 'Edited judgment notes.',
+    ])->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->judgment_notes)->toBe('Original judgment notes.')
+        ->and($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at)->not->toBeNull();
+});
+
+test('judgment recording returns 409 when the case is closed after the fresh read', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $closedAt = now()->subMinute()->startOfSecond();
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::UnderInvestigation, [
+        'investigation_notes' => 'Investigation notes are complete.',
+    ]);
+    $staleCase = $case->fresh();
+
+    caseManagementConditionalConflict($staleCase, 'recordJudgment', function () use ($case, $closedAt) {
+        CrimeCase::whereKey($case->getKey())->update([
+            'status' => CaseStatus::Closed->value,
+            'judgment_notes' => 'Judgment recorded before closure.',
+            'closed_at' => $closedAt,
+        ]);
+    });
+
+    $this->actingAs($admin)->patch(route('cases.record_judgment', $case), [
+        'judgment_notes' => 'Judgment submitted after closure.',
+    ])->assertStatus(409);
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->judgment_notes)->toBe('Judgment recorded before closure.')
+        ->and($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at?->toDateTimeString())->toBe($closedAt->toDateTimeString());
 });
 
 test('invalid judgment notes are rejected without modifying the case', function (array $payload) {
@@ -1288,6 +1526,35 @@ test('closed cases cannot be closed again or reopened', function () {
 
     expect($freshCase->status)->toBe(CaseStatus::Closed)
         ->and($freshCase->closed_at?->toDateTimeString())->toBe($closedAt->toDateTimeString())
+        ->and($freshCase->judgment_notes)->toBe('Final judgment notes.');
+});
+
+test('closure returns 409 when another request closes the case after the fresh read', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $racingClosedAt = now()->subMinute()->startOfSecond();
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::JudgmentRecorded, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => 'Final judgment notes.',
+    ]);
+    $staleCase = $case->fresh();
+
+    caseManagementConditionalConflict($staleCase, 'close', function () use ($case, $racingClosedAt) {
+        CrimeCase::whereKey($case->getKey())->update([
+            'status' => CaseStatus::Closed->value,
+            'closed_at' => $racingClosedAt,
+        ]);
+    });
+
+    $this->actingAs($admin)
+        ->patch(route('cases.close', $case))
+        ->assertStatus(409);
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->status)->toBe(CaseStatus::Closed)
+        ->and($freshCase->closed_at?->toDateTimeString())->toBe($racingClosedAt->toDateTimeString())
         ->and($freshCase->judgment_notes)->toBe('Final judgment notes.');
 });
 
