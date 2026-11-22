@@ -371,6 +371,27 @@ test('administrator can reassign an investigator', function () {
     expect($case->fresh()->status)->toBe($originalStatus);
 });
 
+test('administrator cannot reassign an investigator on a closed case', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $originalInvestigator = caseManagementUser(UserRole::Investigator);
+    $newInvestigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $originalInvestigator, CaseStatus::Closed, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => 'Final judgment notes.',
+        'closed_at' => now(),
+    ]);
+
+    $this->actingAs($admin)->patch(route('cases.assign', $case), [
+        'investigator_id' => $newInvestigator->id,
+    ])->assertForbidden();
+
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigator_id)->toBe($originalInvestigator->id)
+        ->and($freshCase->status)->toBe(CaseStatus::Closed);
+});
+
 test('assignment requires an investigator', function () {
     $admin = caseManagementUser(UserRole::Administrator);
     $officer = caseManagementUser(UserRole::PoliceOfficer);
@@ -452,6 +473,22 @@ test('assignment form is visible only to administrators', function (UserRole $ro
     'police officer' => [UserRole::PoliceOfficer, false],
     'investigator' => [UserRole::Investigator, false],
 ]);
+
+test('assignment form is hidden on closed cases', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementAssignedCase($officer, $investigator, CaseStatus::Closed, [
+        'investigation_notes' => 'Investigation notes are complete.',
+        'judgment_notes' => 'Final judgment notes.',
+        'closed_at' => now(),
+    ]);
+
+    $this->actingAs($admin)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertDontSee('Assign investigator')
+        ->assertDontSee(route('cases.assign', $case), false);
+});
 
 test('guests cannot update investigation notes', function () {
     $officer = caseManagementUser(UserRole::PoliceOfficer);
@@ -563,18 +600,22 @@ test('administrator can record investigation notes on any case', function () {
         ->and($case->fresh()->status)->toBe(CaseStatus::UnderInvestigation);
 });
 
-test('administrator can record investigation notes without downgrading a terminal case', function (CaseStatus $status) {
+test('administrator cannot update investigation notes on judgment recorded or closed cases', function (CaseStatus $status) {
     $admin = caseManagementUser(UserRole::Administrator);
     $officer = caseManagementUser(UserRole::PoliceOfficer);
     $investigator = caseManagementUser(UserRole::Investigator);
-    $case = caseManagementAssignedCase($officer, $investigator, $status);
+    $case = caseManagementAssignedCase($officer, $investigator, $status, [
+        'investigation_notes' => 'Existing investigation notes.',
+    ]);
 
     $this->actingAs($admin)->patch(route('cases.update_investigation', $case), [
         'investigation_notes' => 'Administrator retrospective notes.',
-    ])->assertRedirect(route('cases.show', $case));
+    ])->assertForbidden();
 
-    expect($case->fresh()->investigation_notes)->toBe('Administrator retrospective notes.')
-        ->and($case->fresh()->status)->toBe($status);
+    $freshCase = $case->fresh();
+
+    expect($freshCase->investigation_notes)->toBe('Existing investigation notes.')
+        ->and($freshCase->status)->toBe($status);
 })->with([
     CaseStatus::JudgmentRecorded,
     CaseStatus::Closed,

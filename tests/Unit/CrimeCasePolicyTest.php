@@ -106,7 +106,10 @@ test('update investigation enforces oversight assignment and terminal statuses',
 
     expect(Gate::forUser($user)->allows('updateInvestigation', $case))->toBe($expected);
 })->with([
-    'administrator oversees any case' => [UserRole::Administrator, 1, 2, 3, CaseStatus::Closed, true],
+    'administrator oversees open case' => [UserRole::Administrator, 1, 2, 3, CaseStatus::Open, true],
+    'administrator oversees case under investigation' => [UserRole::Administrator, 1, 2, 3, CaseStatus::UnderInvestigation, true],
+    'administrator cannot update assigned judgment recorded case' => [UserRole::Administrator, 1, 2, 3, CaseStatus::JudgmentRecorded, false],
+    'administrator cannot update assigned closed case' => [UserRole::Administrator, 1, 2, 3, CaseStatus::Closed, false],
     'police officer cannot update own open case' => [UserRole::PoliceOfficer, 2, 2, null, CaseStatus::Open, false],
     'investigator updates assigned open case' => [UserRole::Investigator, 3, 2, 3, CaseStatus::Open, true],
     'investigator updates assigned case under investigation' => [UserRole::Investigator, 3, 2, 3, CaseStatus::UnderInvestigation, true],
@@ -116,14 +119,16 @@ test('update investigation enforces oversight assignment and terminal statuses',
     'investigator cannot update assigned closed case' => [UserRole::Investigator, 3, 2, 3, CaseStatus::Closed, false],
 ]);
 
-test('assign investigators is granted only to administrators', function (UserRole $role, bool $expected) {
+test('assign investigators is granted only to administrators and not on closed cases', function (UserRole $role, CaseStatus $status, bool $expected) {
     $user = caseAuthorizationUser($role, 1);
 
-    expect(Gate::forUser($user)->allows('assign', caseAuthorizationCase(2)))->toBe($expected);
+    expect(Gate::forUser($user)->allows('assign', caseAuthorizationCase(2, null, $status)))->toBe($expected);
 })->with([
-    'administrator' => [UserRole::Administrator, true],
-    'police officer' => [UserRole::PoliceOfficer, false],
-    'investigator' => [UserRole::Investigator, false],
+    'administrator assigns open case' => [UserRole::Administrator, CaseStatus::Open, true],
+    'administrator assigns judgment recorded case' => [UserRole::Administrator, CaseStatus::JudgmentRecorded, true],
+    'administrator cannot assign closed case' => [UserRole::Administrator, CaseStatus::Closed, false],
+    'police officer' => [UserRole::PoliceOfficer, CaseStatus::Open, false],
+    'investigator' => [UserRole::Investigator, CaseStatus::Open, false],
 ]);
 
 test('record judgment enforces administrator access and investigation status', function (UserRole $role, CaseStatus $status, ?string $investigationNotes, bool $expected) {

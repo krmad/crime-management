@@ -48,18 +48,22 @@ class CrimeCasePolicy
 
     public function updateInvestigation(User $user, CrimeCase $case): bool
     {
+        if (in_array($case->status, [CaseStatus::JudgmentRecorded, CaseStatus::Closed], true)) {
+            return false;
+        }
+
         if ($user->can('view-all-cases')) {
             return true;
         }
 
         return $user->can('investigate-cases')
-            && $case->investigator_id === $user->id
-            && ! in_array($case->status, [CaseStatus::JudgmentRecorded, CaseStatus::Closed], true);
+            && $case->investigator_id === $user->id;
     }
 
     public function assign(User $user, CrimeCase $case): bool
     {
-        return $user->can('assign-cases');
+        return $user->can('assign-cases')
+            && $case->status !== CaseStatus::Closed;
     }
 
     public function recordJudgment(User $user, CrimeCase $case): bool
