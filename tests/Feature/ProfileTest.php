@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CrimeCase;
 use App\Models\User;
 
 test('profile page is displayed', function () {
@@ -50,7 +51,7 @@ test('email verification status is unchanged when the email address is unchanged
     $this->assertNotNull($user->refresh()->email_verified_at);
 });
 
-test('user can delete their account', function () {
+test('user without associated cases can delete their account', function () {
     $user = User::factory()->create();
 
     $response = $this
@@ -65,6 +66,73 @@ test('user can delete their account', function () {
 
     $this->assertGuest();
     $this->assertNull($user->fresh());
+});
+
+test('account deletion is rejected when the user created a case', function () {
+    $user = User::factory()->create();
+
+    CrimeCase::factory()->withCreator($user)->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->from('/profile')
+        ->delete('/profile', [
+            'password' => 'password',
+        ]);
+
+    $response
+        ->assertSessionHasErrorsIn('userDeletion', [
+            'account_deletion' => 'This account cannot be deleted while it has associated crime cases.',
+        ])
+        ->assertRedirect('/profile');
+
+    $this->assertAuthenticatedAs($user);
+});
+
+test('account deletion is rejected when the user is assigned to a case', function () {
+    $user = User::factory()->create();
+
+    CrimeCase::factory()->assignedTo($user)->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->from('/profile')
+        ->delete('/profile', [
+            'password' => 'password',
+        ]);
+
+    $response
+        ->assertSessionHasErrorsIn('userDeletion', [
+            'account_deletion' => 'This account cannot be deleted while it has associated crime cases.',
+        ])
+        ->assertRedirect('/profile');
+
+    $this->assertAuthenticatedAs($user);
+});
+
+test('rejected deletion leaves the user and case relationships unchanged', function () {
+    $user = User::factory()->create();
+    $case = CrimeCase::factory()->withCreator($user)->assignedTo($user)->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->from('/profile')
+        ->delete('/profile', [
+            'password' => 'password',
+        ]);
+
+    $response
+        ->assertSessionHasErrorsIn('userDeletion', 'account_deletion')
+        ->assertRedirect('/profile');
+
+    $this->assertAuthenticatedAs($user);
+    $this->assertModelExists($user);
+    $this->assertModelExists($case);
+    $this->assertDatabaseHas('cases', [
+        'id' => $case->id,
+        'created_by' => $user->id,
+        'investigator_id' => $user->id,
+    ]);
 });
 
 test('correct password must be provided to delete account', function () {

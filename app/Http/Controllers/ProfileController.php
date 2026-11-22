@@ -48,6 +48,13 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        if ($user->createdCases()->exists() || $user->assignedCases()->exists()) {
+            return Redirect::route('profile.edit')
+                ->withErrors([
+                    'account_deletion' => 'This account cannot be deleted while it has associated crime cases.',
+                ], 'userDeletion');
+        }
+
         Auth::logout();
 
         $user->delete();

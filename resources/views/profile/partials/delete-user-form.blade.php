@@ -27,6 +27,12 @@
                 {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.') }}
             </p>
 
+            <x-input-error
+                :messages="$errors->userDeletion->get('account_deletion')"
+                class="mt-2"
+                role="alert"
+            />
+
             <div class="mt-6">
                 <x-input-label for="password" value="{{ __('Password') }}" class="sr-only" />
 
