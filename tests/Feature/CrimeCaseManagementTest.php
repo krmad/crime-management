@@ -39,7 +39,7 @@ function validCasePayload(array $overrides = []): array
         'crime_type' => 'Burglary',
         'location' => 'Downtown District',
         'description' => 'Fictional incident report for internal testing.',
-        'incident_date' => '2026-11-20 10:00:00',
+        'incident_date' => now()->subDay()->toDateTimeString(),
     ], $overrides);
 }
 
@@ -271,6 +271,98 @@ test('description length validation error is displayed on the case creation form
         ]))
         ->assertOk()
         ->assertSee('The description field must not be greater than 10000 characters.');
+});
+
+test('future incident date is rejected without creating a case', function () {
+    $this->freezeTime();
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $response = $this->actingAs($officer)
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload([
+            'incident_date' => now()->addDay()->toDateTimeString(),
+        ]));
+
+    $response
+        ->assertSessionHasErrors([
+            'incident_date' => 'The incident date field must be a date before or equal to now.',
+        ])
+        ->assertRedirect(route('cases.create'));
+
+    $this->assertDatabaseCount('cases', 0);
+});
+
+test('past incident date is accepted and saved', function () {
+    $this->freezeTime();
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $incidentDate = now()->subDay()->toDateTimeString();
+
+    $response = $this->actingAs($officer)->post(route('cases.store'), validCasePayload([
+        'incident_date' => $incidentDate,
+    ]));
+
+    $response
+        ->assertRedirect(route('cases.index'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('cases', [
+        'title' => 'Reported Burglary',
+        'incident_date' => $incidentDate,
+        'created_by' => $officer->id,
+    ]);
+});
+
+test('today incident date is accepted and saved', function () {
+    $this->freezeTime();
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $incidentDate = now()->toDateTimeString();
+
+    $response = $this->actingAs($officer)->post(route('cases.store'), validCasePayload([
+        'incident_date' => $incidentDate,
+    ]));
+
+    $response
+        ->assertRedirect(route('cases.index'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('cases', [
+        'title' => 'Reported Burglary',
+        'incident_date' => $incidentDate,
+        'created_by' => $officer->id,
+    ]);
+});
+
+test('omitted incident date remains accepted', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $payload = validCasePayload();
+
+    unset($payload['incident_date']);
+
+    $response = $this->actingAs($officer)->post(route('cases.store'), $payload);
+
+    $response
+        ->assertRedirect(route('cases.index'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('cases', [
+        'title' => 'Reported Burglary',
+        'incident_date' => null,
+        'created_by' => $officer->id,
+    ]);
+});
+
+test('future incident date error is displayed on the case creation form', function () {
+    $this->freezeTime();
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->followingRedirects()
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload([
+            'incident_date' => now()->addDay()->toDateTimeString(),
+        ]))
+        ->assertOk()
+        ->assertSee('The incident date field must be a date before or equal to now.');
 });
 
 test('guests cannot access case details', function () {
