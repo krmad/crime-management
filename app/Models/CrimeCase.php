@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'description',
     'status',
     'incident_date',
+    'crime_category_id',
+    'custom_crime_type',
 ])]
 class CrimeCase extends Model
 {
@@ -57,5 +59,10 @@ class CrimeCase extends Model
     public function investigator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'investigator_id');
+    }
+
+    public function crimeCategory(): BelongsTo
+    {
+        return $this->belongsTo(CrimeCategory::class, 'crime_category_id');
     }
 }
