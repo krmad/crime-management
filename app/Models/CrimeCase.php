@@ -65,4 +65,25 @@ class CrimeCase extends Model
     {
         return $this->belongsTo(CrimeCategory::class, 'crime_category_id');
     }
+
+    /**
+     * @return array<int, array{id: int, name: string}>
+     */
+    public function classification(): array
+    {
+        $category = $this->crimeCategory;
+
+        if ($category === null) {
+            return [];
+        }
+
+        return collect([$category->parent?->parent, $category->parent, $category])
+            ->filter()
+            ->map(fn (CrimeCategory $ancestor): array => [
+                'id' => $ancestor->getKey(),
+                'name' => $ancestor->name,
+            ])
+            ->values()
+            ->all();
+    }
 }

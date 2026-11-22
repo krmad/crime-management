@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\CaseStatus;
 use App\Models\CrimeCase;
+use App\Models\CrimeCategory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -61,6 +62,15 @@ class CrimeCaseFactory extends Factory
     {
         return $this->state(fn () => [
             'created_by' => $creator->id,
+        ]);
+    }
+
+    public function withCrimeCategory(CrimeCategory $category): static
+    {
+        return $this->state(fn () => [
+            'crime_category_id' => $category->getKey(),
+            'title' => $category->name,
+            'crime_type' => $category->name,
         ]);
     }
 

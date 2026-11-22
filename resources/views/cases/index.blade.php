@@ -31,11 +31,12 @@
                     <p class="mt-6 text-sm text-gray-600 dark:text-gray-400">{{ __('No cases are available.') }}</p>
                 @else
                     <div class="mt-6 overflow-x-auto">
-                        <table class="w-full min-w-[880px] text-left text-sm">
+                        <table class="w-full min-w-[1100px] text-left text-sm">
                             <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
                                 <tr>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Title') }}</th>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Crime type') }}</th>
+                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Provisional classification') }}</th>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Location') }}</th>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Status') }}</th>
                                     <th scope="col" class="px-4 py-3 font-medium">{{ __('Incident date') }}</th>
@@ -49,6 +50,14 @@
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                                         <td class="px-4 py-4 font-medium text-gray-900 dark:text-gray-100">{{ $case->title }}</td>
                                         <td class="px-4 py-4 text-gray-700 dark:text-gray-300">{{ $case->crime_type }}</td>
+                                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400">
+                                            @if ($case->crimeCategory)
+                                                <span class="block text-xs text-indigo-600 dark:text-indigo-400">{{ __('Provisional classification') }}</span>
+                                                <span class="mt-1 block text-xs">{{ collect($case->classification())->pluck('name')->implode(' → ') }}</span>
+                                            @else
+                                                <span class="text-xs">—</span>
+                                            @endif
+                                        </td>
                                         <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->location }}</td>
                                         <td class="px-4 py-4">
                                             <span class="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">{{ $case->status->value }}</span>

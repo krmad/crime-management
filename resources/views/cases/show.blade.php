@@ -35,7 +35,27 @@
                     <span class="inline-flex w-fit rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">{{ $case->status->value }}</span>
                 </div>
 
+                @if ($case->crimeCategory)
+                    <div class="mt-6 rounded-lg border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/10">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">{{ __('Provisional classification') }}</p>
+                        <nav aria-label="{{ __('Crime category classification') }}" class="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-900 dark:text-gray-100">
+                            @foreach ($case->classification() as $category)
+                                @if (! $loop->first)
+                                    <span aria-hidden="true" class="text-gray-400 dark:text-gray-500">&rarr;</span>
+                                @endif
+                                <span>{{ $category['name'] }}</span>
+                            @endforeach
+                        </nav>
+                        <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">{{ __('Provisional categories are based on publicly available Ethiopian legal and Oromia Police sources and are not officially approved by Oromia Regional Police.') }}</p>
+                    </div>
+                @endif
+
                 <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Effective case title / type') }}</p>
+                        <p class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $case->title }} — {{ $case->crime_type }}</p>
+                    </div>
+
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Crime type') }}</p>
                         <p class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $case->crime_type }}</p>

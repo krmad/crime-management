@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CaseStatus;
+use App\Enums\CaseTitleType;
 use App\Enums\UserRole;
 use App\Http\Requests\AssignInvestigatorRequest;
 use App\Http\Requests\CloseCaseRequest;
@@ -10,7 +11,9 @@ use App\Http\Requests\RecordJudgmentRequest;
 use App\Http\Requests\StoreCrimeCaseRequest;
 use App\Http\Requests\UpdateInvestigationRequest;
 use App\Models\CrimeCase;
+use App\Models\CrimeCategory;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +27,7 @@ class CrimeCaseController extends Controller
         Gate::authorize('viewAny', CrimeCase::class);
 
         $query = CrimeCase::visibleTo($request->user())
-            ->with(['creator:id,name', 'investigator:id,name']);
+            ->with(['creator:id,name', 'investigator:id,name', 'crimeCategory.parent.parent']);
 
         $cases = $query
             ->orderByDesc('created_at')
@@ -38,7 +41,7 @@ class CrimeCaseController extends Controller
     {
         Gate::authorize('view', $case);
 
-        $case->load(['creator:id,name', 'investigator:id,name']);
+        $case->load(['creator:id,name', 'investigator:id,name', 'crimeCategory.parent.parent']);
 
         $investigators = User::where('role', UserRole::Investigator)
             ->orderBy('name')
@@ -148,13 +151,79 @@ class CrimeCaseController extends Controller
     {
         Gate::authorize('create', CrimeCase::class);
 
-        return view('cases.create');
+        $titleTypes = array_map(
+            fn (CaseTitleType $titleType): array => [
+                'value' => $titleType->value,
+                'label' => $titleType->label(),
+            ],
+            CaseTitleType::cases(),
+        );
+
+        return view('cases.create', [
+            'titleTypes' => $titleTypes,
+            'categories' => $this->categoryData(),
+            'customTitleTypeValue' => CaseTitleType::Other->value,
+        ]);
     }
 
     public function store(StoreCrimeCaseRequest $request): RedirectResponse
     {
-        $request->user()->createdCases()->create($request->validated());
+        $validated = $request->validated();
+        $titleType = CaseTitleType::from($validated['case_title_type']);
+        $isCustom = $titleType === CaseTitleType::Other;
+
+        $request->user()->createdCases()->create([
+            'title' => $isCustom ? $validated['custom_crime_type'] : $titleType->label(),
+            'crime_type' => $titleType->label(),
+            'custom_crime_type' => $isCustom ? $validated['custom_crime_type'] : null,
+            'crime_category_id' => $validated['crime_category_id'],
+            'location' => $validated['location'],
+            'description' => $validated['description'],
+            'incident_date' => $validated['incident_date'] ?? null,
+        ]);
 
         return redirect()->route('cases.index')->with('status', 'case-created');
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string, children: array<int, mixed>}>
+     */
+    private function categoryData(): array
+    {
+        return CrimeCategory::query()
+            ->active()
+            ->where('level', 1)
+            ->whereNull('parent_id')
+            ->with([
+                'children' => fn (HasMany $query): HasMany => $query
+                    ->where('is_active', true)
+                    ->where('level', 2)
+                    ->with([
+                        'children' => fn (HasMany $childQuery): HasMany => $childQuery
+                            ->where('is_active', true)
+                            ->where('level', 3)
+                            ->orderBy('sort_order')
+                            ->orderBy('id'),
+                    ])
+                    ->orderBy('sort_order')
+                    ->orderBy('id'),
+            ])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (CrimeCategory $level1): array => [
+                'id' => $level1->getKey(),
+                'name' => $level1->name,
+                'children' => $level1->children->map(fn (CrimeCategory $level2): array => [
+                    'id' => $level2->getKey(),
+                    'name' => $level2->name,
+                    'children' => $level2->children->map(fn (CrimeCategory $level3): array => [
+                        'id' => $level3->getKey(),
+                        'name' => $level3->name,
+                    ])->values()->all(),
+                ])->values()->all(),
+            ])
+            ->values()
+            ->all();
     }
 }

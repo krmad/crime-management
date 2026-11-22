@@ -33,7 +33,7 @@ class DashboardController extends Controller
         ];
 
         $recentCases = (clone $visibleCases)
-            ->with('investigator:id,name')
+            ->with(['investigator:id,name', 'crimeCategory.parent.parent'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(5)

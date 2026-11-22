@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\CaseStatus;
+use App\Enums\CaseTitleType;
 use App\Enums\UserRole;
 use App\Models\CrimeCase;
+use App\Models\CrimeCategory;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -36,11 +38,24 @@ function caseManagementAssignedCase(User $creator, User $investigator, CaseStatu
     return $case;
 }
 
+function caseManagementCategoryHierarchy(): array
+{
+    $level1 = CrimeCategory::factory()->create(['name' => 'Book V — Crimes Against Individuals and the Family']);
+    $level2 = CrimeCategory::factory()->childOf($level1)->create(['name' => 'Title I — Crimes Against Life, Person and Health']);
+    $level3 = CrimeCategory::factory()->childOf($level2)->create(['name' => 'Homicide (Article 538)']);
+
+    return [$level1, $level2, $level3];
+}
+
 function validCasePayload(array $overrides = []): array
 {
+    [$level1, $level2, $level3] = caseManagementCategoryHierarchy();
+
     return array_merge([
-        'title' => 'Reported Burglary',
-        'crime_type' => 'Burglary',
+        'case_title_type' => CaseTitleType::Homicide->value,
+        'level_1_category_id' => $level1->getKey(),
+        'level_2_category_id' => $level2->getKey(),
+        'crime_category_id' => $level3->getKey(),
         'location' => 'Downtown District',
         'description' => 'Fictional incident report for internal testing.',
         'incident_date' => now()->subDay()->toDateTimeString(),
@@ -238,16 +253,18 @@ test('case listing orders by created_at and id with deterministic pagination', f
 
 test('administrators and police officers can create cases', function (UserRole $role) {
     $user = caseManagementUser($role);
+    $payload = validCasePayload();
 
-    $response = $this->actingAs($user)->post(route('cases.store'), validCasePayload([
-        'title' => 'New Reported Case',
-    ]));
+    $response = $this->actingAs($user)->post(route('cases.store'), $payload);
 
     $response->assertRedirect(route('cases.index'))
         ->assertSessionHas('status', 'case-created');
 
     $this->assertDatabaseHas('cases', [
-        'title' => 'New Reported Case',
+        'title' => 'Homicide',
+        'crime_type' => 'Homicide',
+        'crime_category_id' => $payload['crime_category_id'],
+        'custom_crime_type' => null,
         'created_by' => $user->id,
         'status' => 'open',
         'investigator_id' => null,
@@ -306,16 +323,20 @@ test('validation rejects invalid required fields', function () {
     $officer = caseManagementUser(UserRole::PoliceOfficer);
 
     $response = $this->actingAs($officer)->post(route('cases.store'), [
-        'title' => '',
-        'crime_type' => '',
+        'case_title_type' => '',
+        'level_1_category_id' => '',
+        'level_2_category_id' => '',
+        'crime_category_id' => '',
         'location' => '',
         'description' => '',
         'incident_date' => 'not-a-date',
     ]);
 
     $response->assertSessionHasErrors([
-        'title',
-        'crime_type',
+        'case_title_type',
+        'level_1_category_id',
+        'level_2_category_id',
+        'crime_category_id',
         'location',
         'description',
         'incident_date',
@@ -338,7 +359,7 @@ test('description of exactly 10000 characters is accepted and saved', function (
         ->assertSessionHas('status', 'case-created');
 
     $this->assertDatabaseHas('cases', [
-        'title' => 'Reported Burglary',
+        'title' => 'Homicide',
         'description' => $description,
         'created_by' => $officer->id,
     ]);
@@ -408,7 +429,7 @@ test('past incident date is accepted and saved', function () {
         ->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('cases', [
-        'title' => 'Reported Burglary',
+        'title' => 'Homicide',
         'incident_date' => $incidentDate,
         'created_by' => $officer->id,
     ]);
@@ -428,7 +449,7 @@ test('today incident date is accepted and saved', function () {
         ->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('cases', [
-        'title' => 'Reported Burglary',
+        'title' => 'Homicide',
         'incident_date' => $incidentDate,
         'created_by' => $officer->id,
     ]);
@@ -447,7 +468,7 @@ test('omitted incident date remains accepted', function () {
         ->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('cases', [
-        'title' => 'Reported Burglary',
+        'title' => 'Homicide',
         'incident_date' => null,
         'created_by' => $officer->id,
     ]);

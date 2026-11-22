@@ -117,11 +117,12 @@
                         <p class="px-5 py-10 text-center text-sm text-slate-500 dark:text-slate-400">No cases are available to your role yet.</p>
                     @else
                         <div class="overflow-x-auto">
-                            <table class="w-full min-w-[720px] text-left text-sm">
+                            <table class="w-full min-w-[900px] text-left text-sm">
                                 <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
                                     <tr>
                                         <th scope="col" class="px-5 py-3 font-medium">Case ID</th>
-                                        <th scope="col" class="px-5 py-3 font-medium">Crime Type</th>
+                                        <th scope="col" class="px-5 py-3 font-medium">Case Title / Type</th>
+                                        <th scope="col" class="px-5 py-3 font-medium">Provisional classification</th>
                                         <th scope="col" class="px-5 py-3 font-medium">Location</th>
                                         <th scope="col" class="px-5 py-3 font-medium">Assigned Investigator</th>
                                         <th scope="col" class="px-5 py-3 font-medium">Status</th>
@@ -134,7 +135,18 @@
                                             <td class="whitespace-nowrap px-5 py-4 font-medium text-slate-900 dark:text-white">
                                                 <a href="{{ route('cases.show', $case) }}" class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">#{{ $case->id }}</a>
                                             </td>
-                                            <td class="whitespace-nowrap px-5 py-4 text-slate-700 dark:text-slate-300">{{ $case->crime_type }}</td>
+                                            <td class="px-5 py-4 text-slate-700 dark:text-slate-300">
+                                                <span class="block">{{ $case->title }}</span>
+                                                <span class="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{{ $case->crime_type }}</span>
+                                            </td>
+                                            <td class="px-5 py-4 text-slate-600 dark:text-slate-400">
+                                                @if ($case->crimeCategory)
+                                                    <span class="block text-xs text-indigo-600 dark:text-indigo-400">Provisional classification</span>
+                                                    <span class="mt-0.5 block text-xs">{{ collect($case->classification())->pluck('name')->implode(' → ') }}</span>
+                                                @else
+                                                    <span class="text-xs">—</span>
+                                                @endif
+                                            </td>
                                             <td class="px-5 py-4 text-slate-600 dark:text-slate-400">{{ $case->location }}</td>
                                             <td class="whitespace-nowrap px-5 py-4 text-slate-600 dark:text-slate-400">{{ $case->investigator?->name ?? '—' }}</td>
                                             <td class="px-5 py-4">
