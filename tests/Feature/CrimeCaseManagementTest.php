@@ -222,6 +222,57 @@ test('validation rejects invalid required fields', function () {
     $this->assertDatabaseCount('cases', 0);
 });
 
+test('description of exactly 10000 characters is accepted and saved', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $description = str_repeat('a', 10000);
+
+    $response = $this->actingAs($officer)->post(route('cases.store'), validCasePayload([
+        'description' => $description,
+    ]));
+
+    $response
+        ->assertRedirect(route('cases.index'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', 'case-created');
+
+    $this->assertDatabaseHas('cases', [
+        'title' => 'Reported Burglary',
+        'description' => $description,
+        'created_by' => $officer->id,
+    ]);
+});
+
+test('description over 10000 characters is rejected without creating a case', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $response = $this->actingAs($officer)
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload([
+            'description' => str_repeat('a', 10001),
+        ]));
+
+    $response
+        ->assertSessionHasErrors([
+            'description' => 'The description field must not be greater than 10000 characters.',
+        ])
+        ->assertRedirect(route('cases.create'));
+
+    $this->assertDatabaseCount('cases', 0);
+});
+
+test('description length validation error is displayed on the case creation form', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->followingRedirects()
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload([
+            'description' => str_repeat('a', 10001),
+        ]))
+        ->assertOk()
+        ->assertSee('The description field must not be greater than 10000 characters.');
+});
+
 test('guests cannot access case details', function () {
     $officer = caseManagementUser(UserRole::PoliceOfficer);
     $case = caseManagementCase($officer);

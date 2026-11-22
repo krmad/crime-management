@@ -27,7 +27,7 @@ class StoreCrimeCaseRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'crime_type' => ['required', 'string', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
+            'description' => ['required', 'string', 'max:10000'],
             'incident_date' => ['nullable', 'date'],
         ];
     }
