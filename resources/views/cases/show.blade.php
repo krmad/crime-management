@@ -440,6 +440,59 @@
                     @endcan
                 </div>
 
+                <div class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h4 class="text-base font-medium text-gray-900 dark:text-gray-100">{{ __('Evidence') }}</h4>
+                            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Items registered for this case and their current custody status.') }}</p>
+                        </div>
+
+                        @can('create', [\App\Models\Evidence::class, $case])
+                            <a href="{{ route('cases.evidence.create', $case) }}" class="text-sm text-indigo-600 underline dark:text-indigo-400">{{ __('Register evidence') }}</a>
+                        @endcan
+                    </div>
+
+                    @if ($case->evidence->isEmpty())
+                        <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">{{ __('No evidence has been registered for this case.') }}</p>
+                    @else
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="w-full min-w-[760px] text-left text-sm">
+                                <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 font-medium">{{ __('Reference') }}</th>
+                                        <th scope="col" class="px-4 py-3 font-medium">{{ __('Title') }}</th>
+                                        <th scope="col" class="px-4 py-3 font-medium">{{ __('Type') }}</th>
+                                        <th scope="col" class="px-4 py-3 font-medium">{{ __('Collected') }}</th>
+                                        <th scope="col" class="px-4 py-3 font-medium">{{ __('Status') }}</th>
+                                        <th scope="col" class="px-4 py-3 font-medium">{{ __('Storage location') }}</th>
+                                        <th scope="col" class="px-4 py-3 font-medium">{{ __('Actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                    @foreach ($case->evidence as $item)
+                                        <tr>
+                                            <td class="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{{ $item->evidence_number }}</td>
+                                            <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $item->title }}</td>
+                                            <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ \Illuminate\Support\Str::headline($item->evidence_type->value) }}</td>
+                                            <td class="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-400">{{ $item->collected_at?->format('M d, Y') ?? '—' }}</td>
+                                            <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ \Illuminate\Support\Str::headline($item->status->value) }}</td>
+                                            <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $item->storage_location ?: '—' }}</td>
+                                            <td class="whitespace-nowrap px-4 py-3">
+                                                <a href="{{ route('evidence.show', $item) }}" class="text-indigo-600 underline dark:text-indigo-400">{{ __('View details') }}</a>
+                                                @if ($item->private_file_path)
+                                                    @can('download', $item)
+                                                        <a href="{{ route('evidence.download', $item) }}" class="ms-3 text-indigo-600 underline dark:text-indigo-400">{{ __('Download') }}</a>
+                                                    @endcan
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+
                 <div class="mt-8">
                     <a href="{{ route('cases.index') }}" class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">
                         {{ __('Back to case listing') }}

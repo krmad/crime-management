@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\CaseStatus;
 use App\Models\CrimeCase;
+use App\Models\Evidence;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -66,10 +67,8 @@ class DashboardController extends Controller
 
         $navigation[] = ['label' => 'Suspects', 'url' => route('suspects.index')];
         $navigation[] = ['label' => 'Victims', 'url' => route('victims.index')];
-
-        foreach (['Evidence', 'Reports'] as $label) {
-            $navigation[] = ['label' => $label, 'url' => null];
-        }
+        $navigation[] = ['label' => 'Evidence', 'url' => $user->can('viewAny', Evidence::class) ? route('evidence.index') : null];
+        $navigation[] = ['label' => 'Reports', 'url' => route('reports.index')];
 
         return $navigation;
     }

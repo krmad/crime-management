@@ -53,19 +53,12 @@ class CrimeCasePolicy
 
     public function managePeople(User $user, CrimeCase $case): bool
     {
-        if ($case->status === CaseStatus::Closed) {
-            return false;
-        }
+        return $this->canManageCaseMaterials($user, $case);
+    }
 
-        if ($user->can('view-all-cases')) {
-            return true;
-        }
-
-        if ($user->can('investigate-cases') && $case->investigator_id === $user->id) {
-            return true;
-        }
-
-        return $user->can('open-cases') && $case->created_by === $user->id;
+    public function manageEvidence(User $user, CrimeCase $case): bool
+    {
+        return $this->canManageCaseMaterials($user, $case);
     }
 
     public function recordJudgment(User $user, CrimeCase $case): bool
@@ -89,5 +82,22 @@ class CrimeCasePolicy
 
         return $case->status === CaseStatus::JudgmentRecorded
             && filled($case->judgment_notes);
+    }
+
+    private function canManageCaseMaterials(User $user, CrimeCase $case): bool
+    {
+        if ($case->status === CaseStatus::Closed) {
+            return false;
+        }
+
+        if ($user->can('view-all-cases')) {
+            return true;
+        }
+
+        if ($user->can('investigate-cases') && $case->investigator_id === $user->id) {
+            return true;
+        }
+
+        return $user->can('open-cases') && $case->created_by === $user->id;
     }
 }

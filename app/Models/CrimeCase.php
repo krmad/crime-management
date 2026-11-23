@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'title',
@@ -81,6 +82,11 @@ class CrimeCase extends Model
             ->using(CaseVictim::class)
             ->withPivot(['id', 'notes'])
             ->withTimestamps();
+    }
+
+    public function evidence(): HasMany
+    {
+        return $this->hasMany(Evidence::class, 'case_id');
     }
 
     /**

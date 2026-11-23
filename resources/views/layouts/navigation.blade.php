@@ -25,6 +25,18 @@
                         </x-nav-link>
                     @endcan
 
+                    @can('viewAny', App\Models\Evidence::class)
+                        <x-nav-link :href="route('evidence.index')" :active="request()->routeIs('evidence.*', 'cases.evidence.*')">
+                            {{ __('Evidence') }}
+                        </x-nav-link>
+                    @endcan
+
+                    @can('viewAny', App\Models\CrimeCase::class)
+                        <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
+                            {{ __('Reports') }}
+                        </x-nav-link>
+                    @endcan
+
                     @can('manage-users')
                         <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
                             {{ __('User Management') }}
@@ -95,6 +107,18 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('victims.index')" :active="request()->routeIs('victims.*')">
                     {{ __('Victims') }}
+                </x-responsive-nav-link>
+            @endcan
+
+            @can('viewAny', App\Models\Evidence::class)
+                <x-responsive-nav-link :href="route('evidence.index')" :active="request()->routeIs('evidence.*', 'cases.evidence.*')">
+                    {{ __('Evidence') }}
+                </x-responsive-nav-link>
+            @endcan
+
+            @can('viewAny', App\Models\CrimeCase::class)
+                <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
+                    {{ __('Reports') }}
                 </x-responsive-nav-link>
             @endcan
 

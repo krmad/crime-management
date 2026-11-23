@@ -49,6 +49,7 @@ class CrimeCaseController extends Controller
             'crimeCategory.parent.parent',
             'suspects',
             'victims',
+            'evidence' => fn ($query) => $query->orderByDesc('collected_at')->orderByDesc('id'),
         ]);
 
         $investigators = User::where('role', UserRole::Investigator)
