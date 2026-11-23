@@ -12,7 +12,9 @@ use App\Http\Requests\StoreCrimeCaseRequest;
 use App\Http\Requests\UpdateInvestigationRequest;
 use App\Models\CrimeCase;
 use App\Models\CrimeCategory;
+use App\Models\Suspect;
 use App\Models\User;
+use App\Models\Victim;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,17 +39,33 @@ class CrimeCaseController extends Controller
         return view('cases.index', compact('cases'));
     }
 
-    public function show(CrimeCase $case): View
+    public function show(Request $request, CrimeCase $case): View
     {
         Gate::authorize('view', $case);
 
-        $case->load(['creator:id,name', 'investigator:id,name', 'crimeCategory.parent.parent']);
+        $case->load([
+            'creator:id,name',
+            'investigator:id,name',
+            'crimeCategory.parent.parent',
+            'suspects',
+            'victims',
+        ]);
 
         $investigators = User::where('role', UserRole::Investigator)
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('cases.show', compact('case', 'investigators'));
+        $availableSuspects = Suspect::visibleTo($request->user())
+            ->whereDoesntHave('cases', fn ($query) => $query->where('cases.id', $case->getKey()))
+            ->orderBy('full_name')
+            ->get(['id', 'full_name']);
+
+        $availableVictims = Victim::visibleTo($request->user())
+            ->whereDoesntHave('cases', fn ($query) => $query->where('cases.id', $case->getKey()))
+            ->orderBy('full_name')
+            ->get(['id', 'full_name']);
+
+        return view('cases.show', compact('case', 'investigators', 'availableSuspects', 'availableVictims'));
     }
 
     public function assign(AssignInvestigatorRequest $request, CrimeCase $case): RedirectResponse

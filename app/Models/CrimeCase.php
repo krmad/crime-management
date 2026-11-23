@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable([
     'title',
@@ -64,6 +65,22 @@ class CrimeCase extends Model
     public function crimeCategory(): BelongsTo
     {
         return $this->belongsTo(CrimeCategory::class, 'crime_category_id');
+    }
+
+    public function suspects(): BelongsToMany
+    {
+        return $this->belongsToMany(Suspect::class, 'case_suspect', 'case_id', 'suspect_id')
+            ->using(CaseSuspect::class)
+            ->withPivot(['id', 'notes', 'status'])
+            ->withTimestamps();
+    }
+
+    public function victims(): BelongsToMany
+    {
+        return $this->belongsToMany(Victim::class, 'case_victim', 'case_id', 'victim_id')
+            ->using(CaseVictim::class)
+            ->withPivot(['id', 'notes'])
+            ->withTimestamps();
     }
 
     /**

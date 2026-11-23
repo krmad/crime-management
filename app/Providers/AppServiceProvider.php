@@ -4,8 +4,12 @@ namespace App\Providers;
 
 use App\Enums\UserRole;
 use App\Models\CrimeCase;
+use App\Models\Suspect;
 use App\Models\User;
+use App\Models\Victim;
 use App\Policies\CrimeCasePolicy;
+use App\Policies\SuspectPolicy;
+use App\Policies\VictimPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -39,5 +43,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('assign-cases', fn (User $user): bool => $user->role === UserRole::Administrator);
 
         Gate::policy(CrimeCase::class, CrimeCasePolicy::class);
+        Gate::policy(Suspect::class, SuspectPolicy::class);
+        Gate::policy(Victim::class, VictimPolicy::class);
     }
 }

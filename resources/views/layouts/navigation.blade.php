@@ -16,6 +16,15 @@
                         {{ __('Dashboard') }}
                     </x-nav-link>
 
+                    @can('viewAny', App\Models\Suspect::class)
+                        <x-nav-link :href="route('suspects.index')" :active="request()->routeIs('suspects.*')">
+                            {{ __('Suspects') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('victims.index')" :active="request()->routeIs('victims.*')">
+                            {{ __('Victims') }}
+                        </x-nav-link>
+                    @endcan
+
                     @can('manage-users')
                         <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
                             {{ __('User Management') }}
@@ -79,6 +88,15 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+
+            @can('viewAny', App\Models\Suspect::class)
+                <x-responsive-nav-link :href="route('suspects.index')" :active="request()->routeIs('suspects.*')">
+                    {{ __('Suspects') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('victims.index')" :active="request()->routeIs('victims.*')">
+                    {{ __('Victims') }}
+                </x-responsive-nav-link>
+            @endcan
 
             @can('manage-users')
                 <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">

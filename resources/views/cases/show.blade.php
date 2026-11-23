@@ -23,6 +23,10 @@
                 <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                     {{ __('Case closed.') }}
                 </div>
+            @elseif (in_array(session('status'), ['suspect-linked', 'suspect-created', 'suspect-updated', 'victim-linked', 'victim-created', 'victim-updated'], true))
+                <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    {{ __('Case people updated.') }}
+                </div>
             @endif
 
             <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
@@ -209,6 +213,232 @@
                         </div>
                     </form>
                 @endcan
+
+                <div class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+                    <h4 class="text-base font-medium text-gray-900 dark:text-gray-100">{{ __('Suspects') }}</h4>
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('People linked to this case and their case-specific status.') }}</p>
+
+                    @if ($case->suspects->isEmpty())
+                        <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">{{ __('No suspects are linked to this case.') }}</p>
+                    @else
+                        <div class="mt-4 space-y-3">
+                            @foreach ($case->suspects as $suspect)
+                                <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <a href="{{ route('suspects.show', $suspect) }}" class="font-medium text-indigo-600 underline hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ $suspect->full_name }}</a>
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ \Illuminate\Support\Str::headline($suspect->pivot->status?->value ?? '') }}</p>
+                                        </div>
+
+                                        @if (filled($suspect->pivot->notes))
+                                            <p class="max-w-xl whitespace-pre-line text-sm text-gray-600 dark:text-gray-400">{{ $suspect->pivot->notes }}</p>
+                                        @endif
+                                    </div>
+
+                                    @can('managePeople', $case)
+                                        <form method="POST" action="{{ route('cases.suspects.update', [$case, $suspect]) }}" class="mt-4 grid gap-4 sm:grid-cols-[1fr_180px_auto] sm:items-end">
+                                            @csrf
+                                            @method('PATCH')
+
+                                            <div>
+                                                <x-input-label for="suspect_notes_{{ $loop->index }}" :value="__('Notes')" />
+                                                <textarea id="suspect_notes_{{ $loop->index }}" name="notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600">{{ old('notes', $suspect->pivot->notes) }}</textarea>
+                                            </div>
+                                            <div>
+                                                <x-input-label for="suspect_status_{{ $loop->index }}" :value="__('Status')" />
+                                                <select id="suspect_status_{{ $loop->index }}" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300" required>
+                                                    @foreach (\App\Enums\SuspectCaseStatus::cases() as $statusOption)
+                                                        <option value="{{ $statusOption->value }}" @selected(old('status', $suspect->pivot->status?->value) === $statusOption->value)>{{ \Illuminate\Support\Str::headline($statusOption->value) }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <x-secondary-button>{{ __('Save') }}</x-secondary-button>
+                                        </form>
+                                    @endcan
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @can('managePeople', $case)
+                        <div class="mt-6 grid gap-6 xl:grid-cols-2">
+                            <form method="POST" action="{{ route('cases.suspects.attach', $case) }}" class="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                                @csrf
+
+                                <h5 class="font-medium text-gray-900 dark:text-gray-100">{{ __('Link an existing suspect') }}</h5>
+
+                                <div>
+                                    <x-input-label for="suspect_id" :value="__('Suspect')" />
+                                    <select id="suspect_id" name="suspect_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300" required>
+                                        <option value="">{{ __('Select a suspect') }}</option>
+                                        @foreach ($availableSuspects as $availableSuspect)
+                                            <option value="{{ $availableSuspect->id }}" @selected(old('suspect_id') == $availableSuspect->id)>{{ $availableSuspect->full_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('suspect_id')" class="mt-2" />
+                                </div>
+
+                                <div>
+                                    <x-input-label for="attach_suspect_notes" :value="__('Notes')" />
+                                    <textarea id="attach_suspect_notes" name="notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600">{{ old('notes') }}</textarea>
+                                </div>
+
+                                <div>
+                                    <x-input-label for="attach_suspect_status" :value="__('Status')" />
+                                    <select id="attach_suspect_status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300" required>
+                                        @foreach (\App\Enums\SuspectCaseStatus::cases() as $statusOption)
+                                            <option value="{{ $statusOption->value }}" @selected(old('status', \App\Enums\SuspectCaseStatus::Identified->value) === $statusOption->value)>{{ \Illuminate\Support\Str::headline($statusOption->value) }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('status')" class="mt-2" />
+                                </div>
+
+                                @if ($availableSuspects->isEmpty())
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ __('No linkable suspects are available.') }}</p>
+                                @endif
+
+                                <x-primary-button>{{ __('Link suspect') }}</x-primary-button>
+                            </form>
+
+                            <form method="POST" action="{{ route('cases.suspects.store_new', $case) }}" class="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                                @csrf
+
+                                <h5 class="font-medium text-gray-900 dark:text-gray-100">{{ __('Create and link a suspect') }}</h5>
+
+                                <div>
+                                    <x-input-label for="new_suspect_full_name" :value="__('Full name')" />
+                                    <x-text-input id="new_suspect_full_name" name="full_name" type="text" class="mt-1 block w-full" :value="old('full_name')" required />
+                                    <x-input-error :messages="$errors->get('full_name')" class="mt-2" />
+                                </div>
+
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <x-input-label for="new_suspect_alias" :value="__('Alias')" />
+                                        <x-text-input id="new_suspect_alias" name="alias" type="text" class="mt-1 block w-full" :value="old('alias')" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="new_suspect_date_of_birth" :value="__('Date of birth')" />
+                                        <x-text-input id="new_suspect_date_of_birth" name="date_of_birth" type="date" class="mt-1 block w-full" :value="old('date_of_birth')" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <x-input-label for="new_suspect_notes" :value="__('Notes')" />
+                                    <textarea id="new_suspect_notes" name="notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600">{{ old('notes') }}</textarea>
+                                </div>
+
+                                <div>
+                                    <x-input-label for="new_suspect_status" :value="__('Status')" />
+                                    <select id="new_suspect_status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300" required>
+                                        @foreach (\App\Enums\SuspectCaseStatus::cases() as $statusOption)
+                                            <option value="{{ $statusOption->value }}" @selected(old('status', \App\Enums\SuspectCaseStatus::Identified->value) === $statusOption->value)>{{ \Illuminate\Support\Str::headline($statusOption->value) }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <x-primary-button>{{ __('Create and link suspect') }}</x-primary-button>
+                            </form>
+                        </div>
+                    @endcan
+                </div>
+
+                <div class="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
+                    <h4 class="text-base font-medium text-gray-900 dark:text-gray-100">{{ __('Victims') }}</h4>
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('People linked to this case as victims.') }}</p>
+
+                    @if ($case->victims->isEmpty())
+                        <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">{{ __('No victims are linked to this case.') }}</p>
+                    @else
+                        <div class="mt-4 space-y-3">
+                            @foreach ($case->victims as $victim)
+                                <div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <a href="{{ route('victims.show', $victim) }}" class="font-medium text-indigo-600 underline hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ $victim->full_name }}</a>
+
+                                        @if (filled($victim->pivot->notes))
+                                            <p class="max-w-xl whitespace-pre-line text-sm text-gray-600 dark:text-gray-400">{{ $victim->pivot->notes }}</p>
+                                        @endif
+                                    </div>
+
+                                    @can('managePeople', $case)
+                                        <form method="POST" action="{{ route('cases.victims.update', [$case, $victim]) }}" class="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                                            @csrf
+                                            @method('PATCH')
+
+                                            <div>
+                                                <x-input-label for="victim_notes_{{ $loop->index }}" :value="__('Notes')" />
+                                                <textarea id="victim_notes_{{ $loop->index }}" name="notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600">{{ old('notes', $victim->pivot->notes) }}</textarea>
+                                            </div>
+                                            <x-secondary-button>{{ __('Save') }}</x-secondary-button>
+                                        </form>
+                                    @endcan
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @can('managePeople', $case)
+                        <div class="mt-6 grid gap-6 xl:grid-cols-2">
+                            <form method="POST" action="{{ route('cases.victims.attach', $case) }}" class="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                                @csrf
+
+                                <h5 class="font-medium text-gray-900 dark:text-gray-100">{{ __('Link an existing victim') }}</h5>
+
+                                <div>
+                                    <x-input-label for="victim_id" :value="__('Victim')" />
+                                    <select id="victim_id" name="victim_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300" required>
+                                        <option value="">{{ __('Select a victim') }}</option>
+                                        @foreach ($availableVictims as $availableVictim)
+                                            <option value="{{ $availableVictim->id }}" @selected(old('victim_id') == $availableVictim->id)>{{ $availableVictim->full_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('victim_id')" class="mt-2" />
+                                </div>
+
+                                <div>
+                                    <x-input-label for="attach_victim_notes" :value="__('Notes')" />
+                                    <textarea id="attach_victim_notes" name="notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600">{{ old('notes') }}</textarea>
+                                </div>
+
+                                @if ($availableVictims->isEmpty())
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ __('No linkable victims are available.') }}</p>
+                                @endif
+
+                                <x-primary-button>{{ __('Link victim') }}</x-primary-button>
+                            </form>
+
+                            <form method="POST" action="{{ route('cases.victims.store_new', $case) }}" class="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                                @csrf
+
+                                <h5 class="font-medium text-gray-900 dark:text-gray-100">{{ __('Create and link a victim') }}</h5>
+
+                                <div>
+                                    <x-input-label for="new_victim_full_name" :value="__('Full name')" />
+                                    <x-text-input id="new_victim_full_name" name="full_name" type="text" class="mt-1 block w-full" :value="old('full_name')" required />
+                                    <x-input-error :messages="$errors->get('full_name')" class="mt-2" />
+                                </div>
+
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <x-input-label for="new_victim_date_of_birth" :value="__('Date of birth')" />
+                                        <x-text-input id="new_victim_date_of_birth" name="date_of_birth" type="date" class="mt-1 block w-full" :value="old('date_of_birth')" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="new_victim_phone" :value="__('Phone')" />
+                                        <x-text-input id="new_victim_phone" name="phone" type="text" class="mt-1 block w-full" :value="old('phone')" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <x-input-label for="new_victim_notes" :value="__('Notes')" />
+                                    <textarea id="new_victim_notes" name="notes" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-indigo-600 dark:focus:ring-indigo-600">{{ old('notes') }}</textarea>
+                                </div>
+
+                                <x-primary-button>{{ __('Create and link victim') }}</x-primary-button>
+                            </form>
+                        </div>
+                    @endcan
+                </div>
 
                 <div class="mt-8">
                     <a href="{{ route('cases.index') }}" class="text-sm text-gray-600 underline hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">

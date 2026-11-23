@@ -64,7 +64,10 @@ class DashboardController extends Controller
             $navigation[] = ['label' => 'Officers', 'url' => route('officers.index')];
         }
 
-        foreach (['Suspects', 'Victims', 'Evidence', 'Reports'] as $label) {
+        $navigation[] = ['label' => 'Suspects', 'url' => route('suspects.index')];
+        $navigation[] = ['label' => 'Victims', 'url' => route('victims.index')];
+
+        foreach (['Evidence', 'Reports'] as $label) {
             $navigation[] = ['label' => $label, 'url' => null];
         }
 

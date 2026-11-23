@@ -51,6 +51,23 @@ class CrimeCasePolicy
             && $case->status !== CaseStatus::Closed;
     }
 
+    public function managePeople(User $user, CrimeCase $case): bool
+    {
+        if ($case->status === CaseStatus::Closed) {
+            return false;
+        }
+
+        if ($user->can('view-all-cases')) {
+            return true;
+        }
+
+        if ($user->can('investigate-cases') && $case->investigator_id === $user->id) {
+            return true;
+        }
+
+        return $user->can('open-cases') && $case->created_by === $user->id;
+    }
+
     public function recordJudgment(User $user, CrimeCase $case): bool
     {
         if ($user->cannot('record-judgment')) {
