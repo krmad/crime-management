@@ -1,58 +1,188 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Crime Management Operations
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A role-based internal workspace for recording crime cases, linking suspects and victims, managing evidence custody, and producing operational reports.
 
-## About Laravel
+## Overview
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Crime Management Operations is a Laravel web application for authorized personnel. It provides a role-scoped case workflow from report creation through investigation, judgment, closure, evidence handling, and reporting.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Key features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Dashboard** with role-scoped case statistics and recent activity.
+- **Case management** with hierarchical classification, assignment, investigation notes, judgment recording, and closure.
+- **People management** for suspects and victims, including case links, relationship status, and notes.
+- **Evidence management** with private file upload/download, reference numbers, item details, and a custody log for transfers, releases, and disposal.
+- **Reports** with date, status, and classification filters, summary counts, outcomes, investigator workload, and filtered CSV export.
+- **User and officer administration** with account activation/deactivation, role assignment, and officer profiles.
+- **Account management** through Laravel Breeze: login, password reset, email verification, password confirmation, and profile updates.
+- **Consistent branding and dark mode** using a shared inline shield-and-checkmark logo, a configurable application name, and a saved light/dark preference.
 
-## Learning Laravel
+There is no public registration route; users are created by an administrator.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Technology stack
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Layer | Technology |
+| --- | --- |
+| Backend | Laravel 13, PHP 8.3+ (tested with PHP 8.4) |
+| Authentication | Laravel Breeze |
+| Frontend | Blade, Tailwind CSS 4, Alpine.js 3, Vite 8 |
+| Testing | Pest 5, PHPUnit |
+| Formatting | Laravel Pint |
+| Default database | SQLite |
+| Development tooling | Laravel Boost, Laravel Pail |
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+The application is configured for SQLite by default, but Laravel's MySQL, MariaDB, PostgreSQL, and SQL Server connections remain available in `config/database.php`.
 
-## Agentic Development
+## Requirements
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+- PHP 8.3 or newer with the SQLite PDO extension
+- Composer 2
+- Node.js 20.19+ or 22.12+ (required by Vite 8), with npm
+- Git
+
+The checked-in test suite uses an in-memory SQLite database configured in `phpunit.xml`, so tests do not require a separate database server.
+
+## macOS installation
+
+Install the runtime dependencies with Homebrew:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+brew install php@8.4 composer node
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Clone the repository and install the application:
 
-## Contributing
+```bash
+git clone <repository-url> crime-management
+cd crime-management
+composer setup
+php artisan db:seed
+composer run dev
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+`composer setup` installs PHP and npm dependencies, copies `.env.example` to `.env` when needed, generates the application key, runs migrations, and builds frontend assets. `php artisan db:seed` creates the crime categories and a local developer user.
 
-## Code of Conduct
+If you prefer to run each service manually:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+composer install
+php artisan migrate --seed
+npm install
+npm run build
+php artisan serve
+```
 
-## Security Vulnerabilities
+In another terminal, run Vite for frontend development:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+npm run dev
+```
+
+The default local URL is `http://localhost:8000`.
+
+## Environment setup
+
+Key settings in `.env`:
+
+- `APP_NAME` and `APP_BRAND_NAME`: set to `Crime Management Operations` in `.env.example`; the visible branding uses `APP_BRAND_NAME` with a full-name fallback.
+- `APP_URL`: defaults to `http://localhost:8000`.
+- `DB_CONNECTION`: defaults to `sqlite`; the SQLite file defaults to `database/database.sqlite`.
+- `SESSION_DRIVER`, `CACHE_STORE`, and `QUEUE_CONNECTION`: default to `database`, so migrations are required before login.
+- `FILESYSTEM_DISK`: defaults to `local`; evidence files are stored privately and downloaded through authorized routes.
+- `MAIL_MAILER`: defaults to `log` for local development.
+
+To use MySQL instead of SQLite, create the database and update the `DB_*` values in `.env` before running migrations:
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=crime_management
+DB_USERNAME=your_user
+DB_PASSWORD=your_password
+```
+
+Then run:
+
+```bash
+php artisan migrate --seed
+```
+
+## Roles and permissions
+
+Roles are defined in `app/Enums/UserRole.php` and enforced through Gates in `app/Providers/AppServiceProvider.php` and policies in `app/Policies/`.
+
+| Capability | Administrator | Investigator | Police officer |
+| --- | :---: | :---: | :---: |
+| View all cases | Yes | No | No |
+| View assigned/created cases | Yes | Assigned only | Created only |
+| Open new cases | Yes | No | Yes |
+| Save investigation notes | Yes | Yes | No |
+| Assign investigators | Yes | No | No |
+| Record judgment | Yes | No | No |
+| Close cases | Yes | No | No |
+| Link/manage people and evidence on open cases | Yes | Assigned cases | Created cases |
+| Release/dispose evidence | Yes | No | No |
+| Create standalone suspects/victims | Yes | No | No |
+| Manage users and officer profiles | Yes | No | No |
+
+Inactive users cannot log in. Administrators cannot deactivate or demote the last active administrator.
+
+The seeder creates `test@example.com` with password `password` and the default `police_officer` role. It does not create an administrator. After seeding, promote at least one user before using administrator-only features:
+
+```bash
+php artisan tinker --execute 'App\Models\User::where("email", "test@example.com")->update(["role" => "administrator"]);'
+```
+
+## Running checks
+
+Run the complete test suite:
+
+```bash
+composer test
+```
+
+Equivalent direct commands:
+
+```bash
+php artisan test
+vendor/bin/pest
+```
+
+Run a focused test file:
+
+```bash
+php artisan test --compact tests/Feature/ApplicationBrandingAndThemeTest.php
+```
+
+Format and check PHP code:
+
+```bash
+vendor/bin/pint
+vendor/bin/pint --test
+```
+
+Build production assets:
+
+```bash
+npm run build
+```
+
+If a page reports a missing Vite manifest, run `npm run build` or start `npm run dev`.
+
+## Project structure
+
+- `app/Enums/`: role and domain status enums.
+- `app/Http/Controllers/`: application and authentication controllers.
+- `app/Http/Requests/`: validation and authorization rules.
+- `app/Policies/`: case, evidence, suspect, and victim authorization.
+- `resources/views/components/`: reusable UI components, logo, theme toggle, and status badges.
+- `routes/web.php`: all application routes.
+- `tests/Feature/`: Pest feature coverage for workflows, permissions, validation, branding, and theme behavior.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is licensed under the MIT license, as declared in `composer.json`.
