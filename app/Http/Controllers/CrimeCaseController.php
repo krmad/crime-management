@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\CaseStatus;
 use App\Enums\CaseTitleType;
+use App\Enums\SuspectCaseStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\AssignInvestigatorRequest;
 use App\Http\Requests\CloseCaseRequest;
@@ -191,15 +192,30 @@ class CrimeCaseController extends Controller
         $titleType = CaseTitleType::from($validated['case_title_type']);
         $isCustom = $titleType === CaseTitleType::Other;
 
-        $request->user()->createdCases()->create([
-            'title' => $isCustom ? $validated['custom_crime_type'] : $titleType->label(),
-            'crime_type' => $titleType->label(),
-            'custom_crime_type' => $isCustom ? $validated['custom_crime_type'] : null,
-            'crime_category_id' => $validated['crime_category_id'],
-            'location' => $validated['location'],
-            'description' => $validated['description'],
-            'incident_date' => $validated['incident_date'] ?? null,
-        ]);
+        $case = DB::transaction(function () use ($request, $validated, $titleType, $isCustom): CrimeCase {
+            $case = $request->user()->createdCases()->create([
+                'title' => $isCustom ? $validated['custom_crime_type'] : $titleType->label(),
+                'crime_type' => $titleType->label(),
+                'custom_crime_type' => $isCustom ? $validated['custom_crime_type'] : null,
+                'crime_category_id' => $validated['crime_category_id'],
+                'location' => $validated['location'],
+                'description' => $validated['description'],
+                'incident_date' => $validated['incident_date'] ?? null,
+            ]);
+
+            if ($request->hasKnownSuspect()) {
+                $suspect = Suspect::create([
+                    'full_name' => $validated['suspect_name'],
+                    'alias' => $validated['suspect_alias'] ?? null,
+                ]);
+
+                $case->suspects()->attach($suspect->getKey(), [
+                    'status' => SuspectCaseStatus::Identified->value,
+                ]);
+            }
+
+            return $case;
+        });
 
         return redirect()->route('cases.index')->with('status', 'case-created');
     }

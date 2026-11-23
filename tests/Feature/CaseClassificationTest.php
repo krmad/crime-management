@@ -45,6 +45,7 @@ function classificationPayload(array $hierarchy, array $overrides = []): array
         'location' => 'Downtown District',
         'description' => 'Fictional incident report for internal testing.',
         'incident_date' => now()->subDay()->toDateTimeString(),
+        'suspect_name' => 'None',
     ], $overrides);
 }
 

@@ -1,84 +1,85 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Cases') }}
-        </h2>
+        <h2 class="truncate text-base font-semibold text-ink">{{ __('Cases') }}</h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            @if (session('status') === 'case-created')
-                <div class="rounded-md bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                    {{ __('Case created.') }}
-                </div>
-            @endif
+    <x-page-container>
+        @if (session('status') === 'case-created')
+            <x-alert tone="success">{{ __('Case created.') }}</x-alert>
+        @endif
 
-            <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                <div class="flex items-center justify-between gap-4">
-                    <div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ __('Case records') }}</h3>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Cases visible to your role.') }}</p>
-                    </div>
-
-                    @can('create', App\Models\CrimeCase::class)
-                        <a href="{{ route('cases.create') }}" class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
-                            {{ __('Create case') }}
-                        </a>
-                    @endcan
-                </div>
-
-                @if ($cases->isEmpty())
-                    <p class="mt-6 text-sm text-gray-600 dark:text-gray-400">{{ __('No cases are available.') }}</p>
-                @else
-                    <div class="mt-6 overflow-x-auto">
-                        <table class="w-full min-w-[1100px] text-left text-sm">
-                            <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Title') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Crime type') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Provisional classification') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Location') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Status') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Incident date') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Creator') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Investigator') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Actions') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                @foreach ($cases as $case)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                                        <td class="px-4 py-4 font-medium text-gray-900 dark:text-gray-100">{{ $case->title }}</td>
-                                        <td class="px-4 py-4 text-gray-700 dark:text-gray-300">{{ $case->crime_type }}</td>
-                                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400">
-                                            @if ($case->crimeCategory)
-                                                <span class="block text-xs text-indigo-600 dark:text-indigo-400">{{ __('Provisional classification') }}</span>
-                                                <span class="mt-1 block text-xs">{{ collect($case->classification())->pluck('name')->implode(' → ') }}</span>
-                                            @else
-                                                <span class="text-xs">—</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->location }}</td>
-                                        <td class="px-4 py-4">
-                                            <span class="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">{{ $case->status->value }}</span>
-                                        </td>
-                                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->incident_date?->format('M d, Y') ?? '—' }}</td>
-                                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->creator?->name ?? '—' }}</td>
-                                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->investigator?->name ?? '—' }}</td>
-                                        <td class="px-4 py-4">
-                                            <a href="{{ route('cases.show', $case) }}" class="whitespace-nowrap text-sm text-indigo-600 underline hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ __('View Details') }}</a>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mt-6">
-                        {{ $cases->links() }}
-                    </div>
-                @endif
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-ink">{{ __('Cases') }}</h1>
+                <p class="mt-1 text-sm text-muted">{{ __('Cases visible to your role.') }}</p>
             </div>
         </div>
-    </div>
+
+        <x-card :title="__('Case records')" :padded="false">
+            <x-slot name="actions">
+                @can('create', App\Models\CrimeCase::class)
+                    <x-link-button :href="route('cases.create')">
+                        <x-icon name="plus" class="h-4 w-4" />
+                        {{ __('Create case') }}
+                    </x-link-button>
+                @endcan
+            </x-slot>
+
+            @if ($cases->isEmpty())
+                <div class="p-5">
+                    <x-empty-state :title="__('No cases are available.')" icon="cases" />
+                </div>
+            @else
+                <x-table min-width="wide">
+                    <x-slot name="head">
+                        <tr>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Title') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Crime type') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Provisional classification') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Location') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Status') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Incident date') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Creator') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Investigator') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Actions') }}</th>
+                        </tr>
+                    </x-slot>
+
+                    @foreach ($cases as $case)
+                        <tr class="transition-colors hover:bg-canvas">
+                            <td class="px-5 py-4">
+                                <a href="{{ route('cases.show', $case) }}" class="font-semibold text-ink transition hover:text-brand">{{ $case->title }}</a>
+                            </td>
+                            <td class="px-5 py-4 text-ink">{{ $case->crime_type }}</td>
+                            <td class="px-5 py-4 text-muted">
+                                @if ($case->crimeCategory)
+                                    <span class="block text-xs font-semibold text-brand">{{ __('Provisional classification') }}</span>
+                                    <span class="mt-1 block text-xs">{{ collect($case->classification())->pluck('name')->implode(' → ') }}</span>
+                                @else
+                                    <span class="text-xs">—</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-4 text-muted">{{ $case->location }}</td>
+                            <td class="px-5 py-4">
+                                <x-status-badge :status="$case->status->value" />
+                            </td>
+                            <td class="whitespace-nowrap px-5 py-4 text-muted">{{ $case->incident_date?->format('M d, Y') ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-4 text-muted">{{ $case->creator?->name ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-4 text-muted">{{ $case->investigator?->name ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-4">
+                                <a href="{{ route('cases.show', $case) }}" class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand transition hover:text-brand-dark">
+                                    <x-icon name="eye" class="h-4 w-4" />
+                                    {{ __('View Details') }}
+                                </a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-table>
+
+                <div class="border-t border-line bg-surface px-5 py-4">
+                    {{ $cases->links() }}
+                </div>
+            @endif
+        </x-card>
+    </x-page-container>
 </x-app-layout>

@@ -5,6 +5,7 @@ use App\Enums\CaseTitleType;
 use App\Enums\UserRole;
 use App\Models\CrimeCase;
 use App\Models\CrimeCategory;
+use App\Models\Suspect;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -59,6 +60,7 @@ function validCasePayload(array $overrides = []): array
         'location' => 'Downtown District',
         'description' => 'Fictional incident report for internal testing.',
         'incident_date' => now()->subDay()->toDateTimeString(),
+        'suspect_name' => 'None',
     ], $overrides);
 }
 
@@ -344,6 +346,192 @@ test('validation rejects invalid required fields', function () {
 
     $this->assertDatabaseCount('cases', 0);
 });
+
+test('incident location is required and cannot be blank or whitespace only', function (?string $location, string $message) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload([
+            'location' => $location,
+        ]))
+        ->assertRedirect(route('cases.create'))
+        ->assertSessionHasErrors([
+            'location' => $message,
+        ]);
+
+    $this->assertDatabaseCount('cases', 0);
+})->with([
+    'missing' => [null, 'The location field is required.'],
+    'empty string' => ['', 'The location field is required.'],
+    'whitespace only' => ['   ', 'The location field is required.'],
+]);
+
+test('incident location validation error is displayed on the case creation form', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->followingRedirects()
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload([
+            'location' => '   ',
+        ]))
+        ->assertOk()
+        ->assertSee('The location field is required.');
+});
+
+test('case creation form treats the suspect name as optional and explains the None sentinel', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)->get(route('cases.create'))
+        ->assertOk()
+        ->assertSee('name="location"', false)
+        ->assertSee('Location <span class="text-danger" aria-hidden="true">*</span>', false)
+        ->assertSee('name="suspect_name"', false)
+        ->assertDontSee('Suspect Full Name (optional) <span class="text-danger" aria-hidden="true">*</span>', false)
+        ->assertSee('Suspect Full Name (optional)', false)
+        ->assertSee('Leave blank or enter None if the suspect is unknown', false)
+        ->assertSee('name="suspect_alias"', false);
+});
+
+test('case creation can create and link a suspect in one transaction', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)->post(route('cases.store'), validCasePayload([
+        'suspect_name' => '  New Case Suspect  ',
+        'suspect_alias' => '  Night Falcon  ',
+    ]))
+        ->assertRedirect(route('cases.index'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', 'case-created');
+
+    $case = CrimeCase::firstOrFail();
+    $suspect = Suspect::where('full_name', 'New Case Suspect')->firstOrFail();
+
+    expect($suspect->alias)->toBe('Night Falcon');
+
+    $this->assertDatabaseHas('case_suspect', [
+        'case_id' => $case->getKey(),
+        'suspect_id' => $suspect->getKey(),
+        'status' => 'identified',
+    ]);
+
+    $this->actingAs($officer)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee('New Case Suspect')
+        ->assertSee('Night Falcon');
+});
+
+test('case creation accepts an omitted blank or whitespace only suspect name', function (?string $suspectName) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $payload = validCasePayload();
+
+    if ($suspectName === null) {
+        unset($payload['suspect_name']);
+    } else {
+        $payload['suspect_name'] = $suspectName;
+    }
+
+    $this->actingAs($officer)->post(route('cases.store'), $payload)
+        ->assertRedirect(route('cases.index'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', 'case-created');
+
+    $case = CrimeCase::firstOrFail();
+
+    expect(Suspect::count())->toBe(0)
+        ->and($case->suspects()->count())->toBe(0);
+
+    $this->assertDatabaseCount('cases', 1)
+        ->assertDatabaseCount('case_suspect', 0);
+
+    $this->actingAs($officer)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee('No known suspect at time of report');
+})->with([
+    'omitted' => [null],
+    'empty string' => [''],
+    'whitespace only' => ['   '],
+]);
+
+test('unknown suspect creates a case without suspect records and displays the report note', function (string $suspectName) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)->post(route('cases.store'), validCasePayload([
+        'suspect_name' => $suspectName,
+    ]))
+        ->assertRedirect(route('cases.index'))
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('status', 'case-created');
+
+    $case = CrimeCase::firstOrFail();
+
+    expect(Suspect::count())->toBe(0)
+        ->and($case->suspects()->count())->toBe(0);
+
+    $this->assertDatabaseCount('case_suspect', 0);
+
+    $this->actingAs($officer)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee('No known suspect at time of report');
+})->with([
+    'None' => ['None'],
+    'lowercase none' => ['none'],
+    'uppercase NONE' => ['NONE'],
+    'padded mixed case none' => [' nOnE '],
+]);
+
+test('an unknown or missing suspect rejects a submitted alias without creating a case', function (string $suspectName) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload([
+            'suspect_name' => $suspectName,
+            'suspect_alias' => 'Secret Alias',
+        ]))
+        ->assertRedirect(route('cases.create'))
+        ->assertSessionHasErrors([
+            'suspect_alias' => 'An alias cannot be entered when the suspect is unknown.',
+        ]);
+
+    $this->assertDatabaseCount('cases', 0)
+        ->assertDatabaseCount('suspects', 0)
+        ->assertDatabaseCount('case_suspect', 0);
+})->with([
+    'None' => ['None'],
+    'lowercase none' => ['none'],
+    'uppercase NONE' => ['NONE'],
+    'blank suspect name' => [''],
+    'whitespace only suspect name' => ['   '],
+]);
+
+test('suspect name and alias length validation rejects overlong values', function (array $overrides, string $field, string $message) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->from(route('cases.create'))
+        ->post(route('cases.store'), validCasePayload($overrides))
+        ->assertRedirect(route('cases.create'))
+        ->assertSessionHasErrors([
+            $field => $message,
+        ]);
+
+    $this->assertDatabaseCount('cases', 0)
+        ->assertDatabaseCount('suspects', 0)
+        ->assertDatabaseCount('case_suspect', 0);
+})->with([
+    'suspect name too long' => [
+        ['suspect_name' => str_repeat('a', 256)],
+        'suspect_name',
+        'The suspect full name field must not be greater than 255 characters.',
+    ],
+    'alias too long' => [
+        ['suspect_alias' => str_repeat('a', 256)],
+        'suspect_alias',
+        'The suspect alias field must not be greater than 255 characters.',
+    ],
+]);
 
 test('description of exactly 10000 characters is accepted and saved', function () {
     $officer = caseManagementUser(UserRole::PoliceOfficer);

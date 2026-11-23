@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class StoreCrimeCaseRequest extends FormRequest
 {
+    private const UNKNOWN_SUSPECT = 'None';
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -61,7 +63,46 @@ class StoreCrimeCaseRequest extends FormRequest
             'location' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:10000'],
             'incident_date' => ['nullable', 'date', 'before_or_equal:now'],
+            'suspect_name' => ['nullable', 'string', 'max:255'],
+            'suspect_alias' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::prohibitedIf(fn (): bool => ! $this->hasKnownSuspect()),
+            ],
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $location = $this->input('location');
+
+        $this->merge([
+            'location' => is_string($location) ? trim($location) : $location,
+            'suspect_name' => $this->trimmedNullableString('suspect_name'),
+            'suspect_alias' => $this->trimmedNullableString('suspect_alias'),
+        ]);
+    }
+
+    /**
+     * Determine whether the report explicitly says the suspect is unknown.
+     */
+    public function hasUnknownSuspect(): bool
+    {
+        $suspectName = $this->input('suspect_name');
+
+        return is_string($suspectName) && strcasecmp($suspectName, self::UNKNOWN_SUSPECT) === 0;
+    }
+
+    /**
+     * Determine whether a usable suspect name was provided.
+     */
+    public function hasKnownSuspect(): bool
+    {
+        return filled($this->input('suspect_name')) && ! $this->hasUnknownSuspect();
     }
 
     /**
@@ -77,6 +118,33 @@ class StoreCrimeCaseRequest extends FormRequest
             'level_1_category_id' => 'level 1 category',
             'level_2_category_id' => 'level 2 category',
             'crime_category_id' => 'level 3 category',
+            'suspect_name' => 'suspect full name',
+            'suspect_alias' => 'suspect alias',
         ];
+    }
+
+    /**
+     * Get custom validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'suspect_alias.prohibited' => 'An alias cannot be entered when the suspect is unknown.',
+        ];
+    }
+
+    private function trimmedNullableString(string $key): ?string
+    {
+        $value = $this->input($key);
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 }

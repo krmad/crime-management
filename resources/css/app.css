@@ -1,9 +1,118 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+
+    --color-canvas: #F5F8FC;
+    --color-surface: #FFFFFF;
+    --color-brand: #318FCB;
+    --color-brand-dark: #2478AB;
+    --color-brand-soft: #E3F2FC;
+    --color-ink: #263445;
+    --color-muted: #64748B;
+    --color-line: #E5EAF0;
+
+    --color-success: #2F9E68;
+    --color-success-soft: #E8F7EF;
+    --color-warning: #B7791F;
+    --color-warning-soft: #FEF4DF;
+    --color-danger: #C53030;
+    --color-danger-soft: #FDECEC;
+    --color-violet: #6D5BD0;
+    --color-violet-soft: #F0EDFB;
+
+    --color-brand-ink: #1F6FA8;
+    --color-success-ink: #1E6B46;
+    --color-warning-ink: #7A4E12;
+    --color-danger-ink: #9B2226;
+    --color-violet-ink: #4C3AA8;
+
+    --shadow-card: 0 1px 2px rgba(38, 52, 69, 0.04), 0 8px 24px rgba(38, 52, 69, 0.04);
+}
+
+@layer base {
+    :root {
+        color-scheme: light;
+    }
+
+    .dark {
+        color-scheme: dark;
+        --tw-ring-offset-color: var(--color-surface);
+        --color-canvas: #0F172A;
+        --color-surface: #1E293B;
+        --color-brand: #60A5FA;
+        --color-brand-dark: #93C5FD;
+        --color-brand-soft: rgba(96, 165, 250, 0.16);
+        --color-ink: #F8FAFC;
+        --color-muted: #94A3B8;
+        --color-line: #334155;
+        --color-success: #4ADE80;
+        --color-success-soft: rgba(74, 222, 128, 0.14);
+        --color-warning: #FBBF24;
+        --color-warning-soft: rgba(251, 191, 36, 0.14);
+        --color-danger: #F87171;
+        --color-danger-soft: rgba(248, 113, 113, 0.14);
+        --color-violet: #C4B5FD;
+        --color-violet-soft: rgba(196, 181, 253, 0.14);
+        --shadow-card: 0 1px 2px rgba(2, 6, 23, 0.4), 0 12px 32px rgba(2, 6, 23, 0.28);
+    }
+
+    body {
+        background-color: var(--color-canvas);
+        color: var(--color-ink);
+    }
+
+    ::selection {
+        background-color: var(--color-brand-soft);
+        color: var(--color-ink);
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer utilities {
+    .text-brand {
+        color: var(--color-brand-ink);
+    }
+
+    .dark .text-brand {
+        color: var(--color-brand);
+    }
+}
+
+@media print {
+    :root,
+    .dark {
+        color-scheme: light !important;
+        --color-canvas: #FFFFFF;
+        --color-surface: #FFFFFF;
+        --color-brand: #318FCB;
+        --color-brand-dark: #2478AB;
+        --color-brand-soft: #E3F2FC;
+        --color-ink: #263445;
+        --color-muted: #64748B;
+        --color-line: #E5EAF0;
+        --color-success: #2F9E68;
+        --color-success-soft: #E8F7EF;
+        --color-warning: #B7791F;
+        --color-warning-soft: #FEF4DF;
+        --color-danger: #C53030;
+        --color-danger-soft: #FDECEC;
+        --color-violet: #6D5BD0;
+        --color-violet-soft: #F0EDFB;
+        --shadow-card: none;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+    }
 }

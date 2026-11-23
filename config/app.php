@@ -13,7 +13,9 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_BRAND_NAME', 'Crime Management Operations'),
+
+    'brand_name' => env('APP_BRAND_NAME', 'Crime Management Operations'),
 
     /*
     |--------------------------------------------------------------------------

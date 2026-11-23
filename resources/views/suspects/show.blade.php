@@ -1,87 +1,83 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Suspect details') }}
-        </h2>
+        <h2 class="truncate text-base font-semibold text-ink">{{ __('Suspect details') }}</h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ $suspect->full_name }}</h3>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Profile details shared across linked cases.') }}</p>
-                    </div>
+    <x-page-container>
+        <x-card :title="$suspect->full_name" :subtitle="__('Profile details shared across linked cases.')">
+            <x-slot name="actions">
+                @can('update', $suspect)
+                    <x-link-button :href="route('suspects.edit', $suspect)" tone="secondary">
+                        <x-icon name="file" class="h-4 w-4" />
+                        {{ __('Edit suspect') }}
+                    </x-link-button>
+                @endcan
+            </x-slot>
 
-                    @can('update', $suspect)
-                        <a href="{{ route('suspects.edit', $suspect) }}" class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
-                            {{ __('Edit suspect') }}
-                        </a>
-                    @endcan
+            <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                <div class="rounded-lg bg-canvas p-4">
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-muted">{{ __('Alias') }}</dt>
+                    <dd class="mt-1 text-sm font-medium text-ink">{{ $suspect->alias ?? '—' }}</dd>
                 </div>
 
-                <dl class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Alias') }}</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $suspect->alias ?? '—' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Date of birth') }}</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $suspect->date_of_birth?->format('M d, Y') ?? '—' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Gender') }}</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $suspect->gender ?? '—' }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Phone') }}</dt>
-                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ $suspect->phone ?? '—' }}</dd>
-                    </div>
-                    <div class="sm:col-span-2">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ __('Address') }}</dt>
-                        <dd class="mt-1 whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{{ $suspect->address ?? '—' }}</dd>
-                    </div>
-                </dl>
-            </div>
+                <div class="rounded-lg bg-canvas p-4">
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-muted">{{ __('Date of birth') }}</dt>
+                    <dd class="mt-1 text-sm font-medium text-ink">{{ $suspect->date_of_birth?->format('M d, Y') ?? '—' }}</dd>
+                </div>
 
-            <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">{{ __('Linked cases') }}</h3>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ __('Only cases available to your role are shown.') }}</p>
+                <div class="rounded-lg bg-canvas p-4">
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-muted">{{ __('Gender') }}</dt>
+                    <dd class="mt-1 text-sm font-medium text-ink">{{ $suspect->gender ?? '—' }}</dd>
+                </div>
 
-                @if ($cases->isEmpty())
-                    <p class="mt-6 text-sm text-gray-600 dark:text-gray-400">{{ __('No visible cases are linked to this suspect.') }}</p>
-                @else
-                    <div class="mt-6 overflow-x-auto">
-                        <table class="w-full min-w-[760px] text-left text-sm">
-                            <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Case') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Status') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Suspect status') }}</th>
-                                    <th scope="col" class="px-4 py-3 font-medium">{{ __('Notes') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                @foreach ($cases as $case)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                                        <td class="px-4 py-4">
-                                            <a href="{{ route('cases.show', $case) }}" class="text-indigo-600 underline hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ $case->title }}</a>
-                                        </td>
-                                        <td class="px-4 py-4 text-gray-700 dark:text-gray-300">{{ $case->status->value }}</td>
-                                        <td class="px-4 py-4 text-gray-700 dark:text-gray-300">{{ \Illuminate\Support\Str::headline($case->pivot->status?->value ?? '') }}</td>
-                                        <td class="px-4 py-4 text-gray-600 dark:text-gray-400">{{ $case->pivot->notes ?? '—' }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="rounded-lg bg-canvas p-4">
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-muted">{{ __('Phone') }}</dt>
+                    <dd class="mt-1 text-sm font-medium text-ink">{{ $suspect->phone ?? '—' }}</dd>
+                </div>
 
-                    <div class="mt-6">
-                        {{ $cases->links() }}
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
+                <div class="rounded-lg bg-canvas p-4 sm:col-span-2">
+                    <dt class="text-xs font-semibold uppercase tracking-wide text-muted">{{ __('Address') }}</dt>
+                    <dd class="mt-1 whitespace-pre-line text-sm font-medium text-ink">{{ $suspect->address ?? '—' }}</dd>
+                </div>
+            </dl>
+        </x-card>
+
+        <x-card :title="__('Linked cases')" :subtitle="__('Only cases available to your role are shown.')" :padded="false">
+            @if ($cases->isEmpty())
+                <div class="p-5">
+                    <x-empty-state :title="__('No visible cases are linked to this suspect.')" icon="cases" />
+                </div>
+            @else
+                <x-table min-width="wide">
+                    <x-slot name="head">
+                        <tr>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Case') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Status') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Suspect status') }}</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">{{ __('Notes') }}</th>
+                        </tr>
+                    </x-slot>
+
+                    @foreach ($cases as $case)
+                        <tr class="transition-colors hover:bg-canvas">
+                            <td class="px-5 py-4 font-semibold text-brand">
+                                <a href="{{ route('cases.show', $case) }}" class="hover:underline">{{ $case->title }}</a>
+                            </td>
+                            <td class="whitespace-nowrap px-5 py-4">
+                                <x-status-badge :status="$case->status->value" />
+                            </td>
+                            <td class="whitespace-nowrap px-5 py-4">
+                                <span class="inline-flex rounded-full bg-violet-soft px-2.5 py-1 text-xs font-semibold text-violet-ink dark:text-violet">{{ \Illuminate\Support\Str::headline($case->pivot->status?->value ?? '') }}</span>
+                            </td>
+                            <td class="px-5 py-4 text-muted">{{ $case->pivot->notes ?? '—' }}</td>
+                        </tr>
+                    @endforeach
+                </x-table>
+
+                <div class="border-t border-line bg-canvas px-5 py-3">
+                    {{ $cases->links() }}
+                </div>
+            @endif
+        </x-card>
+    </x-page-container>
 </x-app-layout>

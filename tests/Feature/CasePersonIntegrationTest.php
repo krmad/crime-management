@@ -172,6 +172,34 @@ test('a suspect can be created and linked from case details in one transaction',
     ]);
 });
 
+test('a case reported with no known suspect can have a suspect added later', function () {
+    $officer = casePersonUser(UserRole::PoliceOfficer);
+    $case = CrimeCase::factory()->withCreator($officer)->create(['title' => 'Unknown Suspect Case']);
+
+    $this->actingAs($officer)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee('No known suspect at time of report');
+
+    $this->actingAs($officer)->post(route('cases.suspects.store_new', $case), [
+        'full_name' => 'Later Identified Suspect',
+        'status' => 'identified',
+    ])->assertRedirect(route('cases.show', $case))
+        ->assertSessionHas('status', 'suspect-created');
+
+    $suspect = Suspect::where('full_name', 'Later Identified Suspect')->firstOrFail();
+
+    $this->assertDatabaseHas('case_suspect', [
+        'case_id' => $case->getKey(),
+        'suspect_id' => $suspect->getKey(),
+        'status' => 'identified',
+    ]);
+
+    $this->actingAs($officer)->get(route('cases.show', $case))
+        ->assertOk()
+        ->assertSee('Later Identified Suspect')
+        ->assertDontSee('No known suspect at time of report');
+});
+
 test('case suspect notes and status can be updated without changing the shared profile', function () {
     $admin = casePersonUser(UserRole::Administrator);
     $case = CrimeCase::factory()->create();
