@@ -32,6 +32,21 @@ class User extends Authenticatable
         return $this->hasMany(CrimeCase::class, 'investigator_id');
     }
 
+    public function assignedJudicialCases(): HasMany
+    {
+        return $this->hasMany(CrimeCase::class, 'judge_id');
+    }
+
+    public function recordedJudgments(): HasMany
+    {
+        return $this->hasMany(CaseJudgment::class, 'judge_id');
+    }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(CaseStatusHistory::class, 'actor_id');
+    }
+
     public function officerProfile(): HasOne
     {
         return $this->hasOne(OfficerProfile::class);

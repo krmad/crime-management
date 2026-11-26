@@ -6,6 +6,8 @@
     <x-page-container>
         @if (session('status') === 'case-assigned')
             <x-alert tone="success">{{ __('Case assigned.') }}</x-alert>
+        @elseif (session('status') === 'case-judge-assigned')
+            <x-alert tone="success">{{ __('Assigned judge saved.') }}</x-alert>
         @elseif (session('status') === 'case-location-updated')
             <x-alert tone="success">{{ __('Case location updated.') }}</x-alert>
         @elseif (session('status') === 'investigation-updated')
@@ -59,6 +61,11 @@
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted">{{ __('Investigator') }}</p>
                     <p class="mt-1 text-sm text-ink">{{ $case->investigator?->name ?? '—' }}</p>
+                </div>
+
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted">{{ __('Assigned Judge') }}</p>
+                    <p class="mt-1 text-sm text-ink">{{ $case->judge?->name ?? __('Not assigned') }}</p>
                 </div>
 
                 <div class="sm:col-span-2 xl:col-span-3">
@@ -132,6 +139,28 @@
                     </div>
 
                     <x-primary-button>{{ __('Assign investigator') }}</x-primary-button>
+                </form>
+            </x-card>
+        @endcan
+
+        @can('assignJudge', $case)
+            <x-card :title="__('Assign judge')" :subtitle="__('Only active users with the Judge role can be assigned.')">
+                <form method="POST" action="{{ route('cases.assign_judge', $case) }}" class="max-w-xl space-y-4">
+                    @csrf
+                    @method('PATCH')
+
+                    <div>
+                        <x-input-label for="judge_id" :value="__('Assigned Judge')" />
+                        <x-select-input id="judge_id" name="judge_id" required>
+                            <option value="" @selected(old('judge_id', $case->judge_id) === null)>{{ __('Select a judge') }}</option>
+                            @foreach ($judges as $judge)
+                                <option value="{{ $judge->id }}" @selected((int) old('judge_id', $case->judge_id) === $judge->id)>{{ $judge->name }}</option>
+                            @endforeach
+                        </x-select-input>
+                        <x-input-error :messages="$errors->get('judge_id')" class="mt-2" />
+                    </div>
+
+                    <x-primary-button>{{ __('Assign judge') }}</x-primary-button>
                 </form>
             </x-card>
         @endcan

@@ -3,10 +3,12 @@
 namespace Database\Factories;
 
 use App\Enums\CaseStatus;
+use App\Enums\UserRole;
 use App\Models\CrimeCase;
 use App\Models\CrimeCategory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use InvalidArgumentException;
 
 /**
  * @extends Factory<CrimeCase>
@@ -89,6 +91,17 @@ class CrimeCaseFactory extends Factory
         return $this->state(fn () => [
             'investigator_id' => $investigator->id,
             'status' => CaseStatus::UnderInvestigation,
+        ]);
+    }
+
+    public function assignedToJudge(User $judge): static
+    {
+        if ($judge->role !== UserRole::Judge) {
+            throw new InvalidArgumentException('Cases must be assigned to a user with the Judge role.');
+        }
+
+        return $this->state(fn () => [
+            'judge_id' => $judge->id,
         ]);
     }
 

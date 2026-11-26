@@ -42,6 +42,9 @@ class CrimeCase extends Model
             'status' => CaseStatus::class,
             'incident_date' => 'datetime',
             'closed_at' => 'datetime',
+            'forwarded_for_review_at' => 'datetime',
+            'judicial_reopened_at' => 'datetime',
+            'judgment_finalized_at' => 'datetime',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];
@@ -71,6 +74,21 @@ class CrimeCase extends Model
     public function investigator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'investigator_id');
+    }
+
+    public function judge(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'judge_id');
+    }
+
+    public function judgments(): HasMany
+    {
+        return $this->hasMany(CaseJudgment::class, 'case_id');
+    }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(CaseStatusHistory::class, 'case_id');
     }
 
     public function crimeCategory(): BelongsTo

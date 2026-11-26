@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\CaseTitleType;
+use App\Enums\UserRole;
 use App\Models\CrimeCase;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Query\Builder;
@@ -65,6 +66,14 @@ class StoreCrimeCaseRequest extends FormRequest
             'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'description' => ['required', 'string', 'max:10000'],
             'incident_date' => ['nullable', 'date', 'before_or_equal:now'],
+            'judge_id' => [
+                'nullable',
+                'integer',
+                Rule::prohibitedIf(fn (): bool => $this->user()?->cannot('manage-users') ?? true),
+                Rule::exists('users', 'id')->where(fn (Builder $query): Builder => $query
+                    ->where('role', UserRole::Judge->value)
+                    ->where('is_active', true)),
+            ],
             'suspect_name' => ['nullable', 'string', 'max:255'],
             'suspect_alias' => [
                 'nullable',
@@ -86,6 +95,7 @@ class StoreCrimeCaseRequest extends FormRequest
             'location' => is_string($location) ? trim($location) : $location,
             'latitude' => $this->normalizedCoordinate('latitude'),
             'longitude' => $this->normalizedCoordinate('longitude'),
+            'judge_id' => $this->input('judge_id') === '' ? null : $this->input('judge_id'),
             'suspect_name' => $this->trimmedNullableString('suspect_name'),
             'suspect_alias' => $this->trimmedNullableString('suspect_alias'),
         ]);
@@ -124,6 +134,7 @@ class StoreCrimeCaseRequest extends FormRequest
             'crime_category_id' => 'level 3 category',
             'latitude' => 'latitude',
             'longitude' => 'longitude',
+            'judge_id' => 'assigned judge',
             'suspect_name' => 'suspect full name',
             'suspect_alias' => 'suspect alias',
         ];
@@ -137,6 +148,7 @@ class StoreCrimeCaseRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'judge_id.exists' => 'The selected judge is invalid.',
             'suspect_alias.prohibited' => 'An alias cannot be entered when the suspect is unknown.',
         ];
     }

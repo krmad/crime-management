@@ -73,6 +73,21 @@
 
             <x-incident-location-picker :latitude="old('latitude')" :longitude="old('longitude')" id="create-incident-location-search" />
 
+            @can('manage-users')
+                <x-card :title="__('Assigned Judge')" :subtitle="__('Only active users with the Judge role can be assigned.')">
+                    <div class="max-w-xl">
+                        <x-input-label for="judge_id" :value="__('Assigned Judge')" />
+                        <x-select-input id="judge_id" name="judge_id">
+                            <option value="" @selected(old('judge_id') === null)>{{ __('Not assigned') }}</option>
+                            @foreach ($judges as $judge)
+                                <option value="{{ $judge->id }}" @selected((int) old('judge_id') === $judge->id)>{{ $judge->name }}</option>
+                            @endforeach
+                        </x-select-input>
+                        <x-input-error :messages="$errors->get('judge_id')" class="mt-2" />
+                    </div>
+                </x-card>
+            @endcan
+
             <x-card title="Known suspect" subtitle="Record the suspect name when it is known.">
                 <p class="mb-5 rounded-lg border border-brand/20 bg-brand-soft/60 px-4 py-3 text-sm text-ink">
                     {{ __('Enter the actual full name when the suspect is known. Leave blank or enter None if the suspect is unknown; an alias cannot be entered without a known suspect.') }}

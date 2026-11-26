@@ -60,6 +60,16 @@ class CrimeCasePolicy
             && $case->status !== CaseStatus::Closed;
     }
 
+    public function assignJudge(User $user, CrimeCase $case): bool
+    {
+        if ($user->cannot('manage-users')) {
+            return false;
+        }
+
+        return $case->forwarded_for_review_at === null
+            && in_array($case->status, [CaseStatus::Open, CaseStatus::UnderInvestigation], true);
+    }
+
     public function managePeople(User $user, CrimeCase $case): bool
     {
         return $this->canManageCaseMaterials($user, $case);

@@ -21,6 +21,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/cases/create', [CrimeCaseController::class, 'create'])->name('cases.create');
     Route::get('/cases/{case}', [CrimeCaseController::class, 'show'])->name('cases.show');
     Route::patch('/cases/{case}/assignment', [CrimeCaseController::class, 'assign'])->name('cases.assign');
+    Route::patch('/cases/{case}/assign-judge', [CrimeCaseController::class, 'assignJudge'])->name('cases.assign_judge');
     Route::patch('/cases/{case}/location', [CrimeCaseController::class, 'updateLocation'])->name('cases.update_location');
     Route::patch('/cases/{case}/investigation', [CrimeCaseController::class, 'updateInvestigation'])->name('cases.update_investigation');
     Route::patch('/cases/{case}/judgment', [CrimeCaseController::class, 'recordJudgment'])->name('cases.record_judgment');
