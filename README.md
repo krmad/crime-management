@@ -13,7 +13,7 @@ Crime Management Operations is a Laravel web application for authorized personne
 - **People management** for suspects and victims, including case links, relationship status, and notes.
 - **Evidence management** with private file upload/download, reference numbers, item details, and a custody log for transfers, releases, and disposal.
 - **Reports** with date, status, and classification filters, summary counts, outcomes, investigator workload, and filtered CSV export.
-- **User and officer administration** with account activation/deactivation, role assignment, and officer profiles.
+- **User and officer administration** with account activation/deactivation, role assignment (including Judge accounts), and officer profile archival.
 - **Account management** through Laravel Breeze: login, password reset, email verification, password confirmation, and profile updates.
 - **Consistent branding and dark mode** using a shared inline shield-and-checkmark logo, a configurable application name, and a saved light/dark preference.
 
@@ -61,6 +61,8 @@ composer run dev
 ```
 
 `composer setup` installs PHP and npm dependencies, copies `.env.example` to `.env` when needed, generates the application key, runs migrations, and builds frontend assets. `php artisan db:seed` creates the crime categories and a local developer user.
+
+Existing installations created before the Judge role work should run `php artisan migrate` once. Migration `2026_11_26_044904_add_deleted_at_to_officer_profiles_table.php` adds `deleted_at` to `officer_profiles` so officer profiles can be archived when an officer becomes a Judge; no reseeding is required.
 
 If you prefer to run each service manually:
 
@@ -113,23 +115,32 @@ php artisan migrate --seed
 
 ## Roles and permissions
 
-Roles are defined in `app/Enums/UserRole.php` and enforced through Gates in `app/Providers/AppServiceProvider.php` and policies in `app/Policies/`.
+Roles are defined in `app/Enums/UserRole.php` and enforced through Gates in `app/Providers/AppServiceProvider.php` and policies in `app/Policies/`. Judge accounts are available for users who should not have case, evidence, people-management, or administrator permissions.
 
-| Capability | Administrator | Investigator | Police officer |
-| --- | :---: | :---: | :---: |
-| View all cases | Yes | No | No |
-| View assigned/created cases | Yes | Assigned only | Created only |
-| Open new cases | Yes | No | Yes |
-| Save investigation notes | Yes | Yes | No |
-| Assign investigators | Yes | No | No |
-| Record judgment | Yes | No | No |
-| Close cases | Yes | No | No |
-| Link/manage people and evidence on open cases | Yes | Assigned cases | Created cases |
-| Release/dispose evidence | Yes | No | No |
-| Create standalone suspects/victims | Yes | No | No |
-| Manage users and officer profiles | Yes | No | No |
+| Capability | Administrator | Investigator | Police Officer | Judge |
+| --- | :---: | :---: | :---: | :---: |
+| Access dashboard | Yes | Yes | Yes | Yes |
+| View all cases | Yes | No | No | No |
+| View assigned/created cases | Yes | Assigned only | Created only | No |
+| Open new cases | Yes | No | Yes | No |
+| Save investigation notes | Yes | Yes | No | No |
+| Assign investigators | Yes | No | No | No |
+| Record judgment | Yes | No | No | No |
+| Close cases | Yes | No | No | No |
+| Link/manage people and evidence on open cases | Yes | Assigned cases | Created cases | No |
+| Release/dispose evidence | Yes | No | No | No |
+| Create standalone suspects/victims | Yes | No | No | No |
+| Manage users and officer profiles | Yes | No | No | No |
 
 Inactive users cannot log in. Administrators cannot deactivate or demote the last active administrator.
+
+### Judge accounts and officer profile archival
+
+Administrators can create and manage Judge accounts from the user administration screens. Judge accounts do not have an OfficerProfile, badge number, or active officer record.
+
+When a user with an active OfficerProfile changes to Judge, the profile is archived with Laravel soft deletes instead of being permanently deleted. The archived profile keeps its historical officer details and keeps the badge number reserved. Changing the same user back to Police Officer or Investigator restores that archived profile instead of creating a second one.
+
+Judge accounts can sign in and view the dashboard, but no judicial case workflow is implemented for them yet. They do not receive case, evidence, people-management, or administrator permissions.
 
 The seeder creates `test@example.com` with password `password` and the default `police_officer` role. It does not create an administrator. After seeding, promote at least one user before using administrator-only features:
 

@@ -50,6 +50,7 @@ class OfficerProfileController extends Controller
         $eligibleUsers = User::query()
             ->whereIn('role', [UserRole::PoliceOfficer->value, UserRole::Investigator->value])
             ->whereDoesntHave('officerProfile')
+            ->whereDoesntHave('archivedOfficerProfile')
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
 

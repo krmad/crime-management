@@ -72,7 +72,7 @@
 
         <div class="shrink-0 border-t border-line px-5 py-4">
             <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Authorized personnel only</p>
-            <p class="mt-1 text-xs text-muted">{{ \Illuminate\Support\Str::headline(Auth::user()->role?->value ?? 'user') }} access</p>
+            <p class="mt-1 text-xs text-muted">{{ __(\Illuminate\Support\Str::headline(Auth::user()->role?->value ?? 'user')) }} {{ __('access') }}</p>
         </div>
     </aside>
 

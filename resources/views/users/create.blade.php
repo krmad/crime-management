@@ -54,7 +54,7 @@
                         <x-select-input id="role" name="role" required>
                             <option value="">{{ __('Select a role') }}</option>
                             @foreach ($roles as $roleOption)
-                                <option value="{{ $roleOption->value }}" @selected(old('role') === $roleOption->value)>{{ \Illuminate\Support\Str::headline($roleOption->value) }}</option>
+                                <option value="{{ $roleOption->value }}" @selected(old('role') === $roleOption->value)>{{ __(\Illuminate\Support\Str::headline($roleOption->value)) }}</option>
                             @endforeach
                         </x-select-input>
                         <x-input-error :messages="$errors->get('role')" class="mt-2" />

@@ -37,6 +37,14 @@ class User extends Authenticatable
         return $this->hasOne(OfficerProfile::class);
     }
 
+    public function archivedOfficerProfile(): HasOne
+    {
+        return $this->hasOne(OfficerProfile::class)
+            ->withTrashed()
+            ->whereNotNull('deleted_at')
+            ->latest('deleted_at');
+    }
+
     #[Scope]
     protected function active(Builder $query): Builder
     {

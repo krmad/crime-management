@@ -41,7 +41,7 @@
                         <x-select-input id="role" name="role">
                             <option value="">{{ __('All roles') }}</option>
                             @foreach (\App\Enums\UserRole::cases() as $roleOption)
-                                <option value="{{ $roleOption->value }}" @selected($role === $roleOption->value)>{{ \Illuminate\Support\Str::headline($roleOption->value) }}</option>
+                                <option value="{{ $roleOption->value }}" @selected($role === $roleOption->value)>{{ __(\Illuminate\Support\Str::headline($roleOption->value)) }}</option>
                             @endforeach
                         </x-select-input>
                     </div>
@@ -79,7 +79,7 @@
                             <td class="px-5 py-4 font-semibold text-ink">{{ $user->name }}</td>
                             <td class="px-5 py-4 text-muted">{{ $user->email }}</td>
                             <td class="px-5 py-4">
-                                <span class="inline-flex whitespace-nowrap rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-ink dark:text-brand">{{ \Illuminate\Support\Str::headline($user->role->value) }}</span>
+                                <span class="inline-flex whitespace-nowrap rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand-ink dark:text-brand">{{ __(\Illuminate\Support\Str::headline($user->role->value)) }}</span>
                             </td>
                             <td class="px-5 py-4">
                                 @if ($user->is_active)

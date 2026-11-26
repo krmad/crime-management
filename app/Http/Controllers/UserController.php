@@ -107,6 +107,12 @@ class UserController extends Controller
             }
 
             $target->save();
+
+            if ($role === UserRole::Judge) {
+                $target->officerProfile()->first()?->delete();
+            } elseif (in_array($role, [UserRole::PoliceOfficer, UserRole::Investigator], true)) {
+                $target->archivedOfficerProfile()->first()?->restore();
+            }
         });
 
         return redirect()->route('users.index')->with('status', 'user-updated');

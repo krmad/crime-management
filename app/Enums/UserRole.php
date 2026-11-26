@@ -7,4 +7,5 @@ enum UserRole: string
     case Administrator = 'administrator';
     case Investigator = 'investigator';
     case PoliceOfficer = 'police_officer';
+    case Judge = 'judge';
 }

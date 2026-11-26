@@ -133,6 +133,54 @@ test('create form offers only eligible accounts without an officer profile', fun
         ->not->toContain($admin->id);
 });
 
+test('archived officer profiles stay hidden from officer management', function () {
+    $admin = officerManagementAdmin();
+    $officer = officerManagementUser(UserRole::PoliceOfficer, ['name' => 'Archived Officer']);
+    $profile = OfficerProfile::factory()->create([
+        'user_id' => $officer->id,
+        'badge_number' => 'BADGE-HIDDEN',
+    ]);
+    $profile->delete();
+
+    $indexResponse = $this->actingAs($admin)
+        ->get(route('officers.index'))
+        ->assertOk()
+        ->assertDontSee('BADGE-HIDDEN');
+
+    expect($indexResponse->viewData('officers')->getCollection()->pluck('id'))
+        ->not->toContain($profile->id);
+
+    $createResponse = $this->actingAs($admin)
+        ->get(route('officers.create'))
+        ->assertOk()
+        ->assertDontSee('Archived Officer');
+
+    expect($createResponse->viewData('eligibleUsers')->pluck('id'))
+        ->not->toContain($officer->id);
+
+    $this->assertSoftDeleted(OfficerProfile::withTrashed()->findOrFail($profile->id))
+        ->assertDatabaseHas('officer_profiles', [
+            'id' => $profile->id,
+            'user_id' => $officer->id,
+            'badge_number' => 'BADGE-HIDDEN',
+        ]);
+});
+
+test('archived badge numbers remain reserved', function () {
+    $admin = officerManagementAdmin();
+    $archivedProfile = OfficerProfile::factory()->create(['badge_number' => 'BADGE-ARCHIVED-RESERVED']);
+    $archivedProfile->delete();
+    $newOfficer = officerManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($admin)
+        ->post(route('officers.store'), validOfficerManagementPayload($newOfficer, [
+            'badge_number' => $archivedProfile->badge_number,
+        ]))
+        ->assertSessionHasErrors('badge_number');
+
+    $this->assertDatabaseCount('officer_profiles', 1);
+});
+
 test('administrator can create an officer profile without creating a duplicate user', function () {
     $admin = officerManagementAdmin();
     $officer = officerManagementUser(UserRole::PoliceOfficer, ['name' => 'Profile Target']);
