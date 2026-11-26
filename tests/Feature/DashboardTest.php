@@ -239,3 +239,32 @@ test('guests are redirected to login from the dashboard', function () {
 
     $this->assertGuest();
 });
+
+test('dashboard map uses only visible mapped cases and caps rendered markers', function () {
+    $officer = dashboardTestUser(UserRole::PoliceOfficer);
+    $otherOfficer = dashboardTestUser(UserRole::PoliceOfficer);
+    $mappedCases = collect(range(1, 101))->map(fn (int $index): CrimeCase => CrimeCase::factory()
+        ->withCreator($officer)
+        ->withCoordinates(9 + ($index / 1000), 38 + ($index / 1000))
+        ->create([
+            'title' => "Mapped Case {$index}",
+            'created_at' => now()->subMinutes($index),
+        ]));
+
+    CrimeCase::factory()->withCreator($officer)->create(['title' => 'Unmapped Case']);
+    $hiddenMappedCase = CrimeCase::factory()->withCreator($otherOfficer)
+        ->withCoordinates(11.5934, 37.3867)
+        ->create(['title' => 'Hidden Mapped Case']);
+
+    $response = $this->actingAs($officer)->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('Showing 100 of 101 mapped cases')
+        ->assertDontSee('Hidden Mapped Case');
+
+    $mapped = $response->viewData('mappedCases');
+
+    expect($mapped)->toHaveCount(100)
+        ->and($mapped->first()['id'])->toBe($mappedCases->first()->id)
+        ->and($mapped->pluck('id'))->not->toContain($hiddenMappedCase->id)
+        ->and($response->viewData('mappedCasesCount'))->toBe(101);
+});

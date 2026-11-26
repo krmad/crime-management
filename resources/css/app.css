@@ -115,4 +115,52 @@
         background: #fff !important;
         color: #000 !important;
     }
+
+    .leaflet-control-container {
+        display: none !important;
+    }
+}
+
+.leaflet-container {
+    background: var(--color-canvas);
+    font-family: var(--font-sans);
+}
+
+.leaflet-container .leaflet-control-attribution {
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    color: var(--color-muted);
+    font-size: 10px;
+}
+
+.leaflet-container .leaflet-control-attribution a {
+    color: var(--color-brand);
+}
+
+.leaflet-container .leaflet-bar,
+.leaflet-container .leaflet-bar a {
+    border-color: var(--color-line);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+}
+
+.leaflet-container .leaflet-bar a:hover {
+    background-color: var(--color-canvas);
+    color: var(--color-brand);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-card);
+}
+
+.leaflet-popup-content {
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 12px 14px;
+}
+
+.leaflet-popup-close-button {
+    color: var(--color-muted) !important;
 }

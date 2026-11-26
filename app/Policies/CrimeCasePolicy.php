@@ -31,6 +31,15 @@ class CrimeCasePolicy
         return $user->can('open-cases');
     }
 
+    public function updateLocation(User $user, CrimeCase $case): bool
+    {
+        if ($case->status === CaseStatus::Closed) {
+            return false;
+        }
+
+        return $this->canManageCaseMaterials($user, $case);
+    }
+
     public function updateInvestigation(User $user, CrimeCase $case): bool
     {
         if (in_array($case->status, [CaseStatus::JudgmentRecorded, CaseStatus::Closed], true)) {

@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'title',
     'crime_type',
     'location',
+    'latitude',
+    'longitude',
     'description',
     'status',
     'incident_date',
@@ -40,6 +42,8 @@ class CrimeCase extends Model
             'status' => CaseStatus::class,
             'incident_date' => 'datetime',
             'closed_at' => 'datetime',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
         ];
     }
 
@@ -51,6 +55,12 @@ class CrimeCase extends Model
         } elseif ($user->cannot('view-all-cases') && $user->can('open-cases')) {
             $query->whereBelongsTo($user, 'creator');
         }
+    }
+
+    #[Scope]
+    protected function withCoordinates(Builder $query): void
+    {
+        $query->whereNotNull('latitude')->whereNotNull('longitude');
     }
 
     public function creator(): BelongsTo

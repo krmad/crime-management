@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    'map' => [
+        'tile_url' => env('MAP_TILE_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        'default_latitude' => (float) env('MAP_DEFAULT_LATITUDE', '9.0320'),
+        'default_longitude' => (float) env('MAP_DEFAULT_LONGITUDE', '38.7469'),
+        'default_zoom' => (int) env('MAP_DEFAULT_ZOOM', '6'),
+    ],
+
+    'nominatim' => [
+        'url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
+        'user_agent' => env('NOMINATIM_USER_AGENT', 'CrimeManagementOperations/1.0'),
+        'contact_email' => env('NOMINATIM_CONTACT_EMAIL'),
+    ],
+
 ];

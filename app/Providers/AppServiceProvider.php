@@ -12,7 +12,10 @@ use App\Policies\CrimeCasePolicy;
 use App\Policies\EvidencePolicy;
 use App\Policies\SuspectPolicy;
 use App\Policies\VictimPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -43,6 +46,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('close-cases', fn (User $user): bool => $user->role === UserRole::Administrator);
 
         Gate::define('assign-cases', fn (User $user): bool => $user->role === UserRole::Administrator);
+
+        RateLimiter::for('geocoding', fn (Request $request): array => [
+            Limit::perSecond(1)->by('nominatim-global'),
+            Limit::perMinute(10)->by('nominatim-user-'.($request->user()?->id ?? 'guest')),
+        ]);
 
         Gate::policy(CrimeCase::class, CrimeCasePolicy::class);
         Gate::policy(Evidence::class, EvidencePolicy::class);

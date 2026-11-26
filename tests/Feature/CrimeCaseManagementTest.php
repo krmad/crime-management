@@ -387,6 +387,10 @@ test('case creation form treats the suspect name as optional and explains the No
         ->assertOk()
         ->assertSee('name="location"', false)
         ->assertSee('Location <span class="text-danger" aria-hidden="true">*</span>', false)
+        ->assertSee('Incident location map')
+        ->assertSee('incidentLocationPicker(', false)
+        ->assertSee('name="latitude"', false)
+        ->assertSee('name="longitude"', false)
         ->assertSee('name="suspect_name"', false)
         ->assertDontSee('Suspect Full Name (optional) <span class="text-danger" aria-hidden="true">*</span>', false)
         ->assertSee('Suspect Full Name (optional)', false)
@@ -1873,3 +1877,195 @@ test('close form is visible only to eligible administrators', function (UserRole
     'investigator with recorded judgment' => [UserRole::Investigator, CaseStatus::JudgmentRecorded, 'Final judgment notes.', false],
     'police officer with recorded judgment' => [UserRole::PoliceOfficer, CaseStatus::JudgmentRecorded, 'Final judgment notes.', false],
 ]);
+
+test('case creation stores map coordinates when provided', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $response = $this->actingAs($officer)->post(route('cases.store'), validCasePayload([
+        'latitude' => '9.0320000',
+        'longitude' => '38.7469000',
+    ]));
+
+    $response->assertRedirect()->assertSessionHasNoErrors();
+
+    $case = CrimeCase::firstOrFail();
+
+    expect((float) $case->latitude)->toBe(9.032)
+        ->and((float) $case->longitude)->toBe(38.7469);
+});
+
+test('case creation rejects partial coordinates', function (array $coordinates, string $field, string $message) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->post(route('cases.store'), validCasePayload($coordinates))
+        ->assertSessionHasErrors([$field => $message]);
+
+    expect(CrimeCase::count())->toBe(0);
+})->with([
+    'latitude only' => [['latitude' => '9.0320000'], 'longitude', 'The longitude field is required when latitude is present.'],
+    'longitude only' => [['longitude' => '38.7469000'], 'latitude', 'The latitude field is required when longitude is present.'],
+]);
+
+test('case creation rejects out of range coordinates', function (array $coordinates, string $field, string $message) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+
+    $this->actingAs($officer)
+        ->post(route('cases.store'), validCasePayload($coordinates))
+        ->assertSessionHasErrors([$field => $message]);
+
+    expect(CrimeCase::count())->toBe(0);
+})->with([
+    'latitude above maximum' => [['latitude' => '91'], 'latitude', 'The latitude field must be between -90 and 90.'],
+    'latitude below minimum' => [['latitude' => '-91'], 'latitude', 'The latitude field must be between -90 and 90.'],
+    'longitude above maximum' => [['longitude' => '181'], 'longitude', 'The longitude field must be between -180 and 180.'],
+    'longitude below minimum' => [['longitude' => '-181'], 'longitude', 'The longitude field must be between -180 and 180.'],
+]);
+
+test('guests cannot update case coordinates', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer, null, [
+        'latitude' => '8.0000000',
+        'longitude' => '37.0000000',
+    ]);
+
+    $this->patch(route('cases.update_location', $case), [
+        'latitude' => '9.0320000',
+        'longitude' => '38.7469000',
+    ])->assertRedirect(route('login'));
+
+    $this->assertGuest();
+
+    expect((float) $case->fresh()->latitude)->toBe(8.0)
+        ->and((float) $case->fresh()->longitude)->toBe(37.0);
+});
+
+test('police officer updates coordinates on own case', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer, null, [
+        'latitude' => '8.0000000',
+        'longitude' => '37.0000000',
+    ]);
+
+    $this->actingAs($officer)->patch(route('cases.update_location', $case), [
+        'latitude' => '9.0320000',
+        'longitude' => '38.7469000',
+    ])->assertRedirect(route('cases.show', $case))
+        ->assertSessionHas('status', 'case-location-updated');
+
+    $freshCase = $case->fresh();
+
+    expect((float) $freshCase->latitude)->toBe(9.032)
+        ->and((float) $freshCase->longitude)->toBe(38.7469);
+});
+
+test('police officer cannot update coordinates on another officer case', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $otherOfficer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer, null, [
+        'latitude' => '8.0000000',
+        'longitude' => '37.0000000',
+    ]);
+
+    $this->actingAs($otherOfficer)->patch(route('cases.update_location', $case), [
+        'latitude' => '9.0320000',
+        'longitude' => '38.7469000',
+    ])->assertForbidden();
+
+    expect((float) $case->fresh()->latitude)->toBe(8.0)
+        ->and((float) $case->fresh()->longitude)->toBe(37.0);
+});
+
+test('investigator cannot update coordinates on unassigned case', function () {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $investigator = caseManagementUser(UserRole::Investigator);
+    $case = caseManagementCase($officer, null, [
+        'latitude' => '8.0000000',
+        'longitude' => '37.0000000',
+    ]);
+
+    $this->actingAs($investigator)->patch(route('cases.update_location', $case), [
+        'latitude' => '9.0320000',
+        'longitude' => '38.7469000',
+    ])->assertForbidden();
+
+    expect((float) $case->fresh()->latitude)->toBe(8.0)
+        ->and((float) $case->fresh()->longitude)->toBe(37.0);
+});
+
+test('administrator cannot update coordinates on closed case', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer, null, [
+        'latitude' => '8.0000000',
+        'longitude' => '37.0000000',
+        'status' => CaseStatus::Closed,
+        'judgment_notes' => 'Final judgment notes.',
+        'closed_at' => now(),
+    ]);
+
+    $this->actingAs($admin)->patch(route('cases.update_location', $case), [
+        'latitude' => '9.0320000',
+        'longitude' => '38.7469000',
+    ])->assertForbidden();
+
+    expect((float) $case->fresh()->latitude)->toBe(8.0)
+        ->and((float) $case->fresh()->longitude)->toBe(37.0);
+});
+
+test('location update rejects partial coordinates', function (array $payload, string $field, string $message) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer);
+
+    $this->actingAs($officer)
+        ->patch(route('cases.update_location', $case), $payload)
+        ->assertSessionHasErrors([$field => $message]);
+
+    expect($case->fresh()->latitude)->toBeNull()
+        ->and($case->fresh()->longitude)->toBeNull();
+})->with([
+    'latitude only' => [['latitude' => '9.0320000'], 'longitude', 'The longitude field is required when latitude is present.'],
+    'longitude only' => [['longitude' => '38.7469000'], 'latitude', 'The latitude field is required when longitude is present.'],
+]);
+
+test('location update rejects out of range coordinates', function (array $payload, string $field, string $message) {
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer);
+
+    $this->actingAs($officer)
+        ->patch(route('cases.update_location', $case), $payload)
+        ->assertSessionHasErrors([$field => $message]);
+
+    expect($case->fresh()->latitude)->toBeNull()
+        ->and($case->fresh()->longitude)->toBeNull();
+})->with([
+    'latitude above maximum' => [['latitude' => '91', 'longitude' => '38.7469000'], 'latitude', 'The latitude field must be between -90 and 90.'],
+    'longitude below minimum' => [['latitude' => '9.0320000', 'longitude' => '-181'], 'longitude', 'The longitude field must be between -180 and 180.'],
+]);
+
+test('location update cannot overwrite coordinates changed after authorization', function () {
+    $admin = caseManagementUser(UserRole::Administrator);
+    $officer = caseManagementUser(UserRole::PoliceOfficer);
+    $case = caseManagementCase($officer, null, [
+        'latitude' => '8.0000000',
+        'longitude' => '37.0000000',
+    ]);
+    $staleCase = $case->fresh();
+
+    caseManagementConditionalConflict($staleCase, 'updateLocation', function () use ($case) {
+        CrimeCase::whereKey($case->getKey())->update([
+            'latitude' => '7.0000000',
+            'longitude' => '36.0000000',
+        ]);
+    });
+
+    $this->actingAs($admin)->patch(route('cases.update_location', $case), [
+        'latitude' => '9.0320000',
+        'longitude' => '38.7469000',
+    ])->assertStatus(409);
+
+    $freshCase = $case->fresh();
+
+    expect((float) $freshCase->latitude)->toBe(7.0)
+        ->and((float) $freshCase->longitude)->toBe(36.0);
+});

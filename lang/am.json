@@ -1,0 +1,22 @@
+{
+    "Add exact coordinates using the map": "ትክክለኛ መጋጠሚያዎችን በካርታው ላይ ያክሉ",
+    "Address or place search": "የአድራሻ ወይም ቦታ ፍለጋ",
+    "Case location updated.": "የጉዳዩ ቦታ ተዘመነ።",
+    "Coordinates": "መጋጠሚያዎች",
+    "Enter at least 3 characters": "ቢያንስ 3 ፊደላት ያስገቡ",
+    "Incident location map": "የክስተት ቦታ ካርታ",
+    "Latitude": "ኬክሮስ",
+    "Location search unavailable": "የቦታ ፍለጋ ለጊዜው አይገኝም",
+    "Longitude": "ኬንትሮስ",
+    "Map": "ካርታ",
+    "No coordinates selected": "ምንም መጋጠሚያዎች አልተመረጡም",
+    "No location results found": "ምንም ተመሳሳይ ቦታ አልተገኘም",
+    "Open in OpenStreetMap": "በ OpenStreetMap ውስጥ ክፈት",
+    "Search": "ፈልግ",
+    "Search results": "የፍለጋ ውጤቶች",
+    "Searching...": "በመፈለግ ላይ...",
+    "Select a result to place the marker": "ምልክቱን ለማስቀመጥ ከውጤቶቹ ይምረጡ",
+    "Showing :shown of :total mapped cases": ":shown ከ :total ካርታ የተመደቡ ጉዳዮችን እያሳየ ነው",
+    "Update location": "ቦታውን አዘምን",
+    "Visible mapped cases": "የሚታዩ ካርታ የተመደቡ ጉዳዮች"
+}

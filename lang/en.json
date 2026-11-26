@@ -1,0 +1,22 @@
+{
+    "Add exact coordinates using the map": "Add exact coordinates using the map",
+    "Address or place search": "Address or place search",
+    "Case location updated.": "Case location updated.",
+    "Coordinates": "Coordinates",
+    "Enter at least 3 characters": "Enter at least 3 characters",
+    "Incident location map": "Incident location map",
+    "Latitude": "Latitude",
+    "Location search unavailable": "Location search is temporarily unavailable",
+    "Longitude": "Longitude",
+    "Map": "Map",
+    "No coordinates selected": "No coordinates selected",
+    "No location results found": "No matching locations found",
+    "Open in OpenStreetMap": "Open in OpenStreetMap",
+    "Search": "Search",
+    "Search results": "Search results",
+    "Searching...": "Searching...",
+    "Select a result to place the marker": "Select a result to place the marker",
+    "Showing :shown of :total mapped cases": "Showing :shown of :total mapped cases",
+    "Update location": "Update location",
+    "Visible mapped cases": "Visible mapped cases"
+}

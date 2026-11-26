@@ -1,0 +1,22 @@
+{
+    "Add exact coordinates using the map": "Koordinaatota sirrii kaartaa fayyadamuun dabalii",
+    "Address or place search": "Teessoo ykn bakka barbaadii",
+    "Case location updated.": "Bakkaan haqa haaromsameera.",
+    "Coordinates": "Koordinaatota",
+    "Enter at least 3 characters": "Minimum 3 herregaa galchi",
+    "Incident location map": "Kaartaa bakka tasa'a",
+    "Latitude": "Laatituudii",
+    "Location search unavailable": "Barbaachiin bakkaa yeroo ammaa hin jiru",
+    "Longitude": "Longituudii",
+    "Map": "Kaartaa",
+    "No coordinates selected": "Koordinaatonni hin filatamne",
+    "No location results found": "Bakkaan walitti hin argattu",
+    "Open in OpenStreetMap": "OpenStreetMap keessatti bani",
+    "Search": "Barbaadi",
+    "Search results": "Bu'uura barbaachaa",
+    "Searching...": "Barbaachaa jira...",
+    "Select a result to place the marker": "Mallattoo dhaabuuf bu'uura fili",
+    "Showing :shown of :total mapped cases": "Kaartaa irra jiran :total keessaa :shown aga'aa jira",
+    "Update location": "Bakkaa haaromsi",
+    "Visible mapped cases": "Haqamtoota kaartaa irra jiran"
+}

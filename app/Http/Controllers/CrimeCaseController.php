@@ -10,6 +10,7 @@ use App\Http\Requests\AssignInvestigatorRequest;
 use App\Http\Requests\CloseCaseRequest;
 use App\Http\Requests\RecordJudgmentRequest;
 use App\Http\Requests\StoreCrimeCaseRequest;
+use App\Http\Requests\UpdateCaseLocationRequest;
 use App\Http\Requests\UpdateInvestigationRequest;
 use App\Models\CrimeCase;
 use App\Models\CrimeCategory;
@@ -88,6 +89,31 @@ class CrimeCaseController extends Controller
         });
 
         return redirect()->route('cases.show', $case)->with('status', 'case-assigned');
+    }
+
+    public function updateLocation(UpdateCaseLocationRequest $request, CrimeCase $case): RedirectResponse
+    {
+        $case = DB::transaction(function () use ($request, $case): CrimeCase {
+            $case->refreshForUpdate();
+
+            Gate::authorize('updateLocation', $case);
+
+            $validated = $request->validated();
+
+            $updated = CrimeCase::whereKey($case->getKey())
+                ->where('latitude', $case->latitude)
+                ->where('longitude', $case->longitude)
+                ->update([
+                    'latitude' => $validated['latitude'] ?? null,
+                    'longitude' => $validated['longitude'] ?? null,
+                ]);
+
+            abort_unless($updated === 1, 409, 'The case location changed while it was being updated.');
+
+            return $case;
+        });
+
+        return redirect()->route('cases.show', $case)->with('status', 'case-location-updated');
     }
 
     public function updateInvestigation(UpdateInvestigationRequest $request, CrimeCase $case): RedirectResponse
@@ -199,6 +225,8 @@ class CrimeCaseController extends Controller
                 'custom_crime_type' => $isCustom ? $validated['custom_crime_type'] : null,
                 'crime_category_id' => $validated['crime_category_id'],
                 'location' => $validated['location'],
+                'latitude' => $validated['latitude'] ?? null,
+                'longitude' => $validated['longitude'] ?? null,
                 'description' => $validated['description'],
                 'incident_date' => $validated['incident_date'] ?? null,
             ]);

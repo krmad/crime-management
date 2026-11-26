@@ -40,9 +40,23 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        $mappedCasesQuery = (clone $visibleCases)->withCoordinates();
+        $mappedCasesCount = (clone $mappedCasesQuery)->count();
+        $mappedCases = (clone $mappedCasesQuery)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get(['id', 'title', 'location', 'latitude', 'longitude', 'status']);
+
         $navigation = $this->navigationFor($user);
 
-        return view('dashboard', compact('statistics', 'recentCases', 'navigation'));
+        return view('dashboard', compact(
+            'statistics',
+            'recentCases',
+            'mappedCases',
+            'mappedCasesCount',
+            'navigation',
+        ));
     }
 
     /**

@@ -42,6 +42,8 @@ class CrimeCaseFactory extends Factory
                 'Central Business District',
                 'Eastside Park',
             ]),
+            'latitude' => null,
+            'longitude' => null,
             'description' => fake()->randomElement([
                 'A fictional incident report was filed after a simulated break-in at a municipal storage facility.',
                 'Officers recorded a fictional disturbance during a training exercise in the downtown district.',
@@ -56,6 +58,14 @@ class CrimeCaseFactory extends Factory
             'created_by' => User::factory(),
             'investigator_id' => null,
         ];
+    }
+
+    public function withCoordinates(float $latitude, float $longitude): static
+    {
+        return $this->state(fn () => [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+        ]);
     }
 
     public function withCreator(User $creator): static

@@ -6,6 +6,8 @@
     <x-page-container>
         @if (session('status') === 'case-assigned')
             <x-alert tone="success">{{ __('Case assigned.') }}</x-alert>
+        @elseif (session('status') === 'case-location-updated')
+            <x-alert tone="success">{{ __('Case location updated.') }}</x-alert>
         @elseif (session('status') === 'investigation-updated')
             <x-alert tone="success">{{ __('Investigation notes saved.') }}</x-alert>
         @elseif (session('status') === 'judgment-recorded')
@@ -75,6 +77,25 @@
                 </div>
             </div>
         </x-card>
+
+        <x-incident-map :cases="[$case]" />
+
+        @can('updateLocation', $case)
+            <form method="POST" action="{{ route('cases.update_location', $case) }}" class="space-y-4">
+                @csrf
+                @method('PATCH')
+
+                <x-incident-location-picker
+                    :latitude="old('latitude', $case->latitude)"
+                    :longitude="old('longitude', $case->longitude)"
+                    id="update-incident-location-search"
+                />
+
+                <div class="flex justify-end">
+                    <x-primary-button>{{ __('Update location') }}</x-primary-button>
+                </div>
+            </form>
+        @endcan
 
         @if ($case->crimeCategory)
             <x-card :title="__('Crime classification')">

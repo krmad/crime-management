@@ -61,6 +61,8 @@ class StoreCrimeCaseRequest extends FormRequest
                     ->where('parent_id', $this->input('level_2_category_id'))),
             ],
             'location' => ['required', 'string', 'max:255'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             'description' => ['required', 'string', 'max:10000'],
             'incident_date' => ['nullable', 'date', 'before_or_equal:now'],
             'suspect_name' => ['nullable', 'string', 'max:255'],
@@ -82,6 +84,8 @@ class StoreCrimeCaseRequest extends FormRequest
 
         $this->merge([
             'location' => is_string($location) ? trim($location) : $location,
+            'latitude' => $this->normalizedCoordinate('latitude'),
+            'longitude' => $this->normalizedCoordinate('longitude'),
             'suspect_name' => $this->trimmedNullableString('suspect_name'),
             'suspect_alias' => $this->trimmedNullableString('suspect_alias'),
         ]);
@@ -118,6 +122,8 @@ class StoreCrimeCaseRequest extends FormRequest
             'level_1_category_id' => 'level 1 category',
             'level_2_category_id' => 'level 2 category',
             'crime_category_id' => 'level 3 category',
+            'latitude' => 'latitude',
+            'longitude' => 'longitude',
             'suspect_name' => 'suspect full name',
             'suspect_alias' => 'suspect alias',
         ];
@@ -133,6 +139,23 @@ class StoreCrimeCaseRequest extends FormRequest
         return [
             'suspect_alias.prohibited' => 'An alias cannot be entered when the suspect is unknown.',
         ];
+    }
+
+    private function normalizedCoordinate(string $key): ?string
+    {
+        $value = $this->input($key);
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
     }
 
     private function trimmedNullableString(string $key): ?string

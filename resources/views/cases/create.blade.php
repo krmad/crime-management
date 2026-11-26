@@ -71,6 +71,8 @@
                 </div>
             </x-card>
 
+            <x-incident-location-picker :latitude="old('latitude')" :longitude="old('longitude')" id="create-incident-location-search" />
+
             <x-card title="Known suspect" subtitle="Record the suspect name when it is known.">
                 <p class="mb-5 rounded-lg border border-brand/20 bg-brand-soft/60 px-4 py-3 text-sm text-ink">
                     {{ __('Enter the actual full name when the suspect is known. Leave blank or enter None if the suspect is unknown; an alias cannot be entered without a known suspect.') }}

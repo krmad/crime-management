@@ -161,5 +161,7 @@
                 </x-card>
             </div>
         </div>
+
+        <x-incident-map :cases="$mappedCases" :mapped-cases-count="$mappedCasesCount" />
     </x-page-container>
 </x-app-layout>
